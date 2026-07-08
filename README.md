@@ -40,10 +40,26 @@ krh place "遼西"
 ```ts
 import { openHistoryDb } from 'kr-history-bm25';
 
-const db = openHistoryDb('history.sqlite');
-db.searchHan('卒本', { limit: 20 });
-db.cluster('卒本', { scope: 'node' });
+const db = await openHistoryDb('history.sqlite');
+await db.searchHan('卒本', { limit: 20 });
+await db.cluster('卒本', { scope: 'node' });
 ```
+
+### 동봉 코퍼스로 즉시 사용 (XML·ingest 불필요)
+
+패키지에 사전 구축 코퍼스(5종 전체, 한자 주 인덱스)가 gzip으로 동봉되어 있다.
+`openBundledDb()`는 첫 호출 시 `data/`로 1회 압축 해제한 뒤 바로 검색을 제공한다.
+
+```ts
+import { openBundledDb } from 'kr-history-bm25';
+
+const db = await openBundledDb(); // 첫 호출: data/history.sqlite로 압축 해제(~1-2초)
+await db.searchHan('浿水');
+await db.cluster('浿水', { neighborType: '지명' }); // 遼東·玄菟·王險·臨屯·遼水 …
+```
+
+> 동봉본은 한자 주 인덱스만 포함한다. 직역(보조) 인덱스는 `db.translate()`로 증분 생성한다.
+> 유지보수자는 `npm run build:corpus`로 `source/`에서 동봉본을 재생성한다.
 
 ## 개발
 

@@ -6,6 +6,7 @@ tmp/
 *.sqlite-shm
 *.sqlite-wal
 *.db
+# 동봉 코퍼스는 압축본(.gz)만 커밋 — 압축 해제본(data/history.sqlite)은 위 *.sqlite로 제외됨
 .DS_Store
 *.log
 .env

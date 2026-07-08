@@ -38,11 +38,13 @@
   "types": "dist/index.d.ts",
   "files": [
     "dist",
+    "data/history.sqlite.gz",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "build": "tsup",
+    "build:corpus": "npm run build && node scripts/build-corpus.mjs",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",

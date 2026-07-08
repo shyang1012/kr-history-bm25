@@ -6,6 +6,7 @@
  * @LastModified: 2026-07-09
  */
 export { openHistoryDb, HistoryDb } from './history-db';
+export { openBundledDb, findDataDir } from './bundled-db';
 export { createDbConnection, type DbConnection } from './db/client';
 export { runMigrations } from './db/migrate';
 
