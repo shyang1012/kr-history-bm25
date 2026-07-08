@@ -1,0 +1,80 @@
+{
+  "name": "kr-history-bm25",
+  "version": "0.1.0",
+  "description": "Convert Korean historical source XML (국사편찬위원회 한국사DB) into a searchable SQLite BM25 corpus — hanja-primary full-text search, structured place/person index, co-occurrence clustering, and an optional LLM literal-translation secondary index.",
+  "type": "module",
+  "keywords": [
+    "korean-history",
+    "hanja",
+    "classical-chinese",
+    "bm25",
+    "fts5",
+    "sqlite",
+    "drizzle",
+    "full-text-search",
+    "삼국사기",
+    "고려사",
+    "역사지리"
+  ],
+  "author": "shyang <disroway@gmail.com>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "bin": {
+    "krh": "./dist/cli/krh.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --fix",
+    "format": "prettier --write \"**/*.{ts,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,md}\"",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run lint && npm run format:check && npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "cac": "^6.7.14",
+    "drizzle-orm": "^0.38.3",
+    "saxes": "^6.0.0"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.32.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "@types/node": "^22.10.5",
+    "@typescript-eslint/eslint-plugin": "^8.19.1",
+    "@typescript-eslint/parser": "^8.19.1",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "prettier": "^3.4.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

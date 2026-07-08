@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE level1 SYSTEM "history.dtd">
+<level1 id="t2_001">
+    <front><biblioData type="원문"><title><mainTitle>高句麗本紀</mainTitle></title></biblioData></front>
+    <level2 id="t2_001_0010" 왕명="東明">
+        <front><biblioData><title><mainTitle>始祖</mainTitle></title></biblioData></front>
+        <text>
+            <content>
+                <paragraph>移都<index type="지명">金城</index>, 又築<index type="지명">漢城</index>.</paragraph>
+            </content>
+        </text>
+    </level2>
+</level1>

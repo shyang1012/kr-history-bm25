@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE level1 SYSTEM "history.dtd">
+<level1 id="t_001">
+    <front>
+        <biblioData type="원문">
+            <title>
+                <mainTitle>新羅本紀</mainTitle>
+            </title>
+        </biblioData>
+    </front>
+    <level2 id="t_001_0010" 왕명="赫居世" 재위년도="1">
+        <front>
+            <biblioData>
+                <title>
+                    <mainTitle>始祖</mainTitle>
+                </title>
+            </biblioData>
+        </front>
+        <text>
+            <content>
+                <paragraph>始祖<index type="이름">赫居世</index>居西干, 國號<index type="국명">徐羅伐</index>.<annotation type="교감주">
+                        <noteContent>본문 주석 <index type="지명">卒本</index></noteContent>
+                    </annotation></paragraph>
+                <paragraph>都<index type="지명">金城</index>.</paragraph>
+            </content>
+        </text>
+    </level2>
+</level1>
