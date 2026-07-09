@@ -6,7 +6,13 @@
  * @LastModified: 2026-07-09
  */
 import { describe, it, expect } from 'vitest';
-import { hanToUnigram, buildPhraseQuery, isCjk } from '../src/ingest/tokenizer';
+import {
+  hanToUnigram,
+  buildPhraseQuery,
+  isCjk,
+  koToUnigram,
+  buildKoPhraseQuery,
+} from '../src/ingest/tokenizer';
 
 describe('hanToUnigram', () => {
   it('한자를 글자 단위 공백 토큰으로 분리한다', () => {
@@ -39,6 +45,37 @@ describe('buildPhraseQuery', () => {
 
   it('한자가 없으면 빈 문자열(스킵 신호)을 반환한다', () => {
     expect(buildPhraseQuery('졸본')).toBe('');
+  });
+});
+
+describe('koToUnigram', () => {
+  it('한글 음절을 글자 단위로 분리한다', () => {
+    expect(koToUnigram('일식이 있었다')).toBe('일 식 이 있 었 다');
+  });
+
+  it('한자는 글자 단위, ASCII 영숫자는 런으로 유지한다', () => {
+    expect(koToUnigram('金城')).toBe('金 城');
+    expect(koToUnigram('BC57년')).toBe('BC57 년'); // ASCII 영숫자는 런으로 묶임
+    expect(koToUnigram('24년 6월')).toBe('24 년 6 월'); // 순수 숫자 런은 각각 토큰
+  });
+
+  it('표점·공백은 구분자로 제외한다', () => {
+    expect(koToUnigram('고구려(高句麗), 백제.')).toBe('고 구 려 高 句 麗 백 제');
+  });
+});
+
+describe('buildKoPhraseQuery', () => {
+  it('한국어 검색어를 음절 phrase로 만든다(조사 결합 극복)', () => {
+    // '일식' → '"일 식"' 은 '일 식 이 …'(일식이)를 매칭한다
+    expect(buildKoPhraseQuery('일식')).toBe('"일 식"');
+  });
+
+  it('한자 검색어도 음절 phrase로', () => {
+    expect(buildKoPhraseQuery('金城')).toBe('"金 城"');
+  });
+
+  it('토큰이 없으면 빈 문자열', () => {
+    expect(buildKoPhraseQuery('  ,. ')).toBe('');
   });
 });
 

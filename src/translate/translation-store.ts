@@ -7,6 +7,7 @@
  * @LastModified: 2026-07-09
  */
 import type { Client } from '@libsql/client';
+import { koToUnigram } from '../ingest/tokenizer';
 
 /** 미완 본문 1건 */
 export interface PendingPassage {
@@ -147,8 +148,9 @@ export async function adopt(
       },
       { sql: 'DELETE FROM passage_fts_ko WHERE passage_id = ?', args: [passageId] },
       {
+        // 색인 컬럼은 음절 단위 토큰(조사 결합 극복). 표시는 translation.text(원문 그대로) 사용.
         sql: 'INSERT INTO passage_fts_ko (ko_text, passage_id) VALUES (?, ?)',
-        args: [text, passageId],
+        args: [koToUnigram(text), passageId],
       },
     ],
     'write',
