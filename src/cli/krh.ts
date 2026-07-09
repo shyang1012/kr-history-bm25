@@ -6,16 +6,42 @@
  * @Author: shyang
  * @LastModified: 2026-07-09
  */
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { cac } from 'cac';
 import { openHistoryDb } from '../history-db';
 import { createProvider, type ProviderName } from '../translate/create-provider';
+import type { BatchTranslationResult } from '../translate/batch';
 
 /** 기본 DB 경로 */
 const DEFAULT_DB = process.env.KRH_DB ?? 'history.sqlite';
 
+/** 배치 내보내기 기본 출력 경로 */
+const DEFAULT_BATCH_OUT = 'tmp/translate-batch.json';
+
+/** 배치 흐름 기본 provider(구독 모델은 메인 에이전트가 호출하며 codex를 기본으로 삼는다) */
+const DEFAULT_BATCH_PROVIDER = 'codex';
+
 /** 텍스트를 지정 길이로 자른다 */
 function truncate(text: string, max = 60): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/**
+ * 배치 직역 결과 파일을 읽는다. `[{id,ko}]` 배열, `{results:[{id,ko}]}` 두 형태를 모두 허용한다.
+ * @param filePath - 결과 JSON 파일 경로
+ * @returns 직역 결과 목록
+ */
+function readBatchResults(filePath: string): BatchTranslationResult[] {
+  const raw: unknown = JSON.parse(readFileSync(filePath, 'utf-8'));
+  const list = Array.isArray(raw) ? raw : (raw as { results?: unknown }).results;
+  if (!Array.isArray(list)) {
+    throw new Error('결과 파일 형식이 올바르지 않습니다(배열 또는 {results:[]} 필요)');
+  }
+  return list.map((item) => {
+    const entry = item as { id: number; ko: string };
+    return { id: Number(entry.id), ko: String(entry.ko) };
+  });
 }
 
 const cli = cac('krh');
@@ -59,6 +85,52 @@ cli
     console.log(
       `[translate] attempted=${stats.attempted} translated=${stats.translated} ` +
         `failed=${stats.failed} remaining=${stats.remaining}`,
+    );
+  });
+
+cli
+  .command('translate-export', '구독 모델 직역용 대기 본문을 JSON으로 내보내기')
+  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
+  .option('--provider <name>', '결과를 채택할 provider 이름', { default: DEFAULT_BATCH_PROVIDER })
+  .option('--corpus <code>', '코퍼스 코드 제한')
+  .option('--limit <n>', '내보낼 최대 본문 수')
+  .option('--out <path>', '출력 JSON 경로', { default: DEFAULT_BATCH_OUT })
+  .action(
+    async (opts: {
+      db: string;
+      provider: string;
+      corpus?: string;
+      limit?: string;
+      out: string;
+    }) => {
+      const db = await openHistoryDb(opts.db);
+      const result = await db.exportPending({
+        provider: opts.provider,
+        corpusCode: opts.corpus,
+        limit: opts.limit ? Number(opts.limit) : undefined,
+      });
+      db.close();
+      mkdirSync(dirname(opts.out), { recursive: true });
+      writeFileSync(opts.out, JSON.stringify(result, null, 2), 'utf-8');
+      console.log(
+        `[translate-export] provider=${result.provider} count=${result.count} → ${opts.out}`,
+      );
+    },
+  );
+
+cli
+  .command('translate-import <file>', '구독 모델 직역 결과 JSON을 적재')
+  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
+  .option('--provider <name>', '결과를 채택할 provider 이름', { default: DEFAULT_BATCH_PROVIDER })
+  .option('--model <name>', '사용 모델명')
+  .action(async (file: string, opts: { db: string; provider: string; model?: string }) => {
+    const results = readBatchResults(file);
+    const db = await openHistoryDb(opts.db);
+    const stats = await db.importResults({ provider: opts.provider, model: opts.model, results });
+    db.close();
+    console.log(
+      `[translate-import] imported=${stats.imported} skipped=${stats.skipped} ` +
+        `remaining=${stats.remaining}`,
     );
   });
 

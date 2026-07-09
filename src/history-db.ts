@@ -13,6 +13,14 @@ import {
   type TranslateOptions,
   type TranslateStats,
 } from './translate/translate-corpus';
+import {
+  exportPending,
+  importResults,
+  type ExportPendingOptions,
+  type ExportPendingResult,
+  type ImportResultsOptions,
+  type ImportResultsStats,
+} from './translate/batch';
 import { searchHan, type SearchHanOptions } from './search/search-han';
 import { searchKo, type SearchKoOptions } from './search/search-ko';
 import { lookupPlace, type LookupOptions } from './search/lookup-place';
@@ -53,6 +61,16 @@ export class HistoryDb {
   /** 미완 본문을 증분 직역한다(보조 코퍼스) */
   translate(options: TranslateOptions): Promise<TranslateStats> {
     return translateCorpus(this.conn, options);
+  }
+
+  /** 구독 모델 직역용 대기 본문을 내보낸다(배치 흐름) */
+  exportPending(options: ExportPendingOptions): Promise<ExportPendingResult> {
+    return exportPending(this.conn, options);
+  }
+
+  /** 구독 모델이 직역한 결과를 적재한다(배치 흐름) */
+  importResults(options: ImportResultsOptions): Promise<ImportResultsStats> {
+    return importResults(this.conn, options);
   }
 
   /** 한자 원문 BM25 검색 */

@@ -30,6 +30,16 @@ export {
   type TranslateStats,
 } from './translate/translate-corpus';
 export {
+  exportPending,
+  importResults,
+  type ExportPendingOptions,
+  type ExportPassage,
+  type ExportPendingResult,
+  type BatchTranslationResult,
+  type ImportResultsOptions,
+  type ImportResultsStats,
+} from './translate/batch';
+export {
   type TranslationProvider,
   type TranslationResult,
   type PassageContext,
