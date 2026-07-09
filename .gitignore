@@ -12,6 +12,9 @@ tmp/
 .env
 .env.*
 !.env.example
+# Wrangler 시크릿(code-wiz에서 복제) — 절대 커밋 금지
+.dev.vars
+.dev.vars.*
 
 # 3rd-party 원자료(국편위 한국사DB) — 라이브러리 git 히스토리 제외. 필요 시 이 줄 삭제.
 source/
