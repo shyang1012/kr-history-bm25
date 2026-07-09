@@ -18,6 +18,14 @@
   ],
   "author": "shyang <disroway@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shyang1012/kr-history-bm25.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shyang1012/kr-history-bm25/issues"
+  },
+  "homepage": "https://github.com/shyang1012/kr-history-bm25#readme",
   "engines": {
     "node": ">=20.0.0"
   },
