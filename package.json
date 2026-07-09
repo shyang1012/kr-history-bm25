@@ -30,7 +30,7 @@
     "node": ">=20.0.0"
   },
   "bin": {
-    "krh": "./dist/cli/krh.js"
+    "krh": "dist/cli/krh.js"
   },
   "exports": {
     ".": {
