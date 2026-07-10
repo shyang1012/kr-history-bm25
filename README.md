@@ -38,7 +38,7 @@ discovery layer, never the basis of a conclusion. See the methodology section be
 
 ---
 
-## 무엇인가 · 연구 철학
+## 개요 · 설계 원칙
 
 이 도구는 사료 검색을 넘어 **역사지리 비정(比定)** 연구를 위한 기반이다. 원사료를 최우선 기준으로,
 LLM에게 정제된 검색 결과를 제공하는 것을 목표로 한다. 설계는 `source/context.md`의 방법론 원칙을 따른다.
