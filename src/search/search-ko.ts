@@ -7,6 +7,7 @@
  */
 import type { Client } from '@libsql/client';
 import type { KoSearchHit } from '../types';
+import { buildKoPhraseQuery } from '../ingest/tokenizer';
 
 /** 직역 검색 옵션 */
 export interface SearchKoOptions {
@@ -26,11 +27,10 @@ export async function searchKo(
   term: string,
   options: SearchKoOptions = {},
 ): Promise<KoSearchHit[]> {
-  const trimmed = term.trim();
-  if (trimmed === '') {
+  const match = buildKoPhraseQuery(term);
+  if (match === '') {
     return [];
   }
-  const match = `"${trimmed.replace(/"/g, '""')}"`;
   const limit = options.limit ?? 20;
 
   const result = await client.execute({

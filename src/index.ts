@@ -6,7 +6,7 @@
  * @LastModified: 2026-07-09
  */
 export { openHistoryDb, HistoryDb } from './history-db';
-export { openBundledDb, findDataDir } from './bundled-db';
+export { openBundledDb, findDataDir, type OpenBundledOptions } from './bundled-db';
 export { createDbConnection, type DbConnection } from './db/client';
 export { runMigrations } from './db/migrate';
 
@@ -29,6 +29,16 @@ export {
   type TranslateOptions,
   type TranslateStats,
 } from './translate/translate-corpus';
+export {
+  exportPending,
+  importResults,
+  type ExportPendingOptions,
+  type ExportPassage,
+  type ExportPendingResult,
+  type BatchTranslationResult,
+  type ImportResultsOptions,
+  type ImportResultsStats,
+} from './translate/batch';
 export {
   type TranslationProvider,
   type TranslationResult,

@@ -42,16 +42,25 @@ export function findDataDir(): string {
   );
 }
 
+/** openBundledDb 옵션 */
+export interface OpenBundledOptions {
+  /** 압축 해제 대상 디렉터리(기본: 동봉 data/). 테스트·읽기전용 환경 격리용 */
+  targetDir?: string;
+}
+
 /**
  * 동봉된 사전 구축 코퍼스를 연다(필요 시 1회 압축 해제).
+ * @param options - 대상 디렉터리 옵션
  * @returns 검색 준비된 HistoryDb 인스턴스
  */
-export async function openBundledDb(): Promise<HistoryDb> {
+export async function openBundledDb(options: OpenBundledOptions = {}): Promise<HistoryDb> {
   const dataDir = findDataDir();
   const gzPath = join(dataDir, GZ_NAME);
-  let dbPath = join(dataDir, DB_NAME);
+  const targetDir = options.targetDir ?? dataDir;
+  let dbPath = join(targetDir, DB_NAME);
 
   if (!existsSync(dbPath)) {
+    mkdirSync(targetDir, { recursive: true });
     const decompressed = gunzipSync(readFileSync(gzPath));
     try {
       writeFileSync(dbPath, decompressed);

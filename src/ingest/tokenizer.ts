@@ -54,3 +54,61 @@ export function buildPhraseQuery(term: string): string {
   }
   return `"${unigram}"`;
 }
+
+/** ASCII 영숫자(런으로 유지: '13'·'BC') 판별 */
+function isAsciiAlnum(cp: number): boolean {
+  return (
+    (cp >= 0x30 && cp <= 0x39) || // 0-9
+    (cp >= 0x41 && cp <= 0x5a) || // A-Z
+    (cp >= 0x61 && cp <= 0x7a) // a-z
+  );
+}
+
+/**
+ * 직역(한국어) 텍스트를 색인용 토큰열로 변환한다.
+ * 한글 음절·한자는 글자 단위로, ASCII 영숫자는 런으로 유지한다(조사 결합 극복 — '일식'이 '일식이'를 매칭).
+ * 예) '일식이 있었다' → '일 식 이 있 었 다', '金城' → '金 城', 'BC57년' → 'BC 57 년'
+ * @param text - 직역 텍스트
+ * @returns 공백 구분 토큰 문자열
+ */
+export function koToUnigram(text: string): string {
+  const tokens: string[] = [];
+  let run = '';
+  const flush = (): void => {
+    if (run.length > 0) {
+      tokens.push(run);
+      run = '';
+    }
+  };
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    if (cp === undefined) {
+      continue;
+    }
+    const isHangul = cp >= 0xac00 && cp <= 0xd7a3;
+    if (isHangul || isCjk(cp)) {
+      flush();
+      tokens.push(ch);
+    } else if (isAsciiAlnum(cp)) {
+      run += ch;
+    } else {
+      flush();
+    }
+  }
+  flush();
+  return tokens.join(' ');
+}
+
+/**
+ * 직역 검색어를 FTS5 구문 질의로 변환한다(ko 음절 단위).
+ * 예) '일식' → '"일 식"', '金城' → '"金 城"'
+ * @param term - 사용자 검색어(한국어)
+ * @returns FTS5 MATCH 구문 문자열(토큰 없으면 빈 문자열)
+ */
+export function buildKoPhraseQuery(term: string): string {
+  const unigram = koToUnigram(term);
+  if (unigram.length === 0) {
+    return '';
+  }
+  return `"${unigram}"`;
+}
