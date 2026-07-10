@@ -19,6 +19,7 @@ History database — 국사편찬위원회 한국사DB) into a self-contained, s
 - **Hanja-primary full-text search** (BM25 over classical Chinese, character-unigram tokenized).
 - **Structured place/person index** and **co-occurrence clustering** for toponym identification.
 - **Optional LLM literal-translation** secondary index (Korean) for concept-level discovery.
+- Exposes an **MCP server** (`krh-mcp`) so LLM clients call the corpus as tools.
 - Ships a **pre-built corpus** — `npm i` and query, no XML ingestion needed.
 
 ```bash
@@ -232,6 +233,39 @@ krh <command> [options]     # 전역 옵션: --db <path> (기본 KRH_DB 또는 h
 
 ---
 
+## MCP 서버 (`krh-mcp`)
+
+동봉 코퍼스를 **MCP(Model Context Protocol) 도구로 LLM 클라이언트에 직접 노출**한다(stdio).
+Claude 등에서 검색·군집·조회를 도구로 호출하고, 비정 방법론 가이드를 prompt로 받는다.
+
+**클라이언트 등록 예** (Claude Desktop/Code 등의 MCP 설정):
+
+```json
+{
+  "mcpServers": {
+    "kr-history": { "command": "krh-mcp" }
+  }
+}
+```
+
+전역 설치했다면 `krh-mcp`, 아니면 `npx -y -p kr-history-bm25 krh-mcp`. `KRH_DB` 환경변수를 주면
+동봉본 대신 지정 코퍼스를 연다.
+
+**도구 5종** (파사드에 1:1, JSON 반환):
+
+| 도구 | 용도 |
+|------|------|
+| `search_han` | 한자 원문 BM25 — 지명·인명 등 **고유명사** |
+| `search_ko` | 직역 BM25 — 일식·전쟁 등 **사건·서술어**(번역 완료분) |
+| `lookup_place` | 표기 출현 위치 구조화 조회 |
+| `cluster` | 같은 기사 공기(共起) 군집 |
+| `with_variants` | 이표기 확장 검색(졸본=홀본) |
+
+**가이드 prompt** — `toponym-identification-guide`: 사서 원문·군집·지도 교차로 지명을 비정하는
+방법론(확정 표현 금지, 결론은 사람 몫)을 제공한다.
+
+---
+
 ## 코퍼스 구성 · 현황 (v0.1.0)
 
 - **한자 BM25 5종** — 삼국사기·삼국유사·고려사·고려사절요·한국고대사료집성.
@@ -276,10 +310,12 @@ Node ≥ 20. 드라이버는 `@libsql/client`(+drizzle-orm), FTS5 마이그레�
 
 ## 로드맵
 
-- **MCP 서버** (다음 최우선) — search/cluster/place/variants를 LLM 도구로 직접 노출.
-- **하이브리드 검색** — libsql 네이티브 벡터(동봉 파일 내 F32_BLOB) + BM25 재랭킹.
+- ✅ **MCP 서버** (`krh-mcp`, 0.2.0 예정) — 도구 5종 + 비정 가이드로 LLM에 직접 노출. (위 절 참조)
+- **하이브리드 검색** — 벡터 KNN(의미 발견층) + BM25 재랭킹, 그 위에 **DBSCAN 군집층**(밀도 기반).
+  libsql 네이티브 벡터(동봉 파일 내 F32_BLOB) 활용.
+- **퍼지 군집(FDBSCAN)** — 경계·이표기의 군집 소속을 등급(가능성)으로. "확정 금지" 방법론과 정합.
 - **웹 UI 시각화** — 지명 군집 force graph, 좌표 플롯, 한자↔직역 병렬 뷰.
-- **Python wrapper** — pandas/scikit-learn(DBSCAN) 연동 분석.
+- **Python wrapper** — 연구자 파이썬 분석 창구(pandas/scikit-learn 연동). 코어 알고리즘은 TS.
 
 ---
 
