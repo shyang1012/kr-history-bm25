@@ -7,6 +7,7 @@
  */
 import type { Client } from '@libsql/client';
 import * as init from './migrations/0001-init';
+import * as reading from './migrations/0002-reading';
 
 /** 마이그레이션 1건 */
 interface Migration {
@@ -15,7 +16,10 @@ interface Migration {
 }
 
 /** 적용 순서대로 나열한 마이그레이션 목록 */
-const MIGRATIONS: Migration[] = [{ version: init.VERSION, sql: init.SQL }];
+const MIGRATIONS: Migration[] = [
+  { version: init.VERSION, sql: init.SQL },
+  { version: reading.VERSION, sql: reading.SQL },
+];
 
 /**
  * 미적용 마이그레이션을 순서대로 적용한다. 이미 적용된 버전은 건너뛴다(멱등).

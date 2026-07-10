@@ -1,65 +1,298 @@
 # kr-history-bm25
 
+**한국사 사료 원문(한자)을 검색 가능한 SQLite BM25 코퍼스로 변환하는 도구.**
 국사편찬위원회 한국사데이터베이스 XML(삼국사기·삼국유사·고려사·고려사절요·한국고대사료집성)을
-**검색 가능한 SQLite BM25 코퍼스**로 전환하는 TypeScript 라이브러리 + CLI.
+대상으로, 한자 원문 전문검색을 1차 기준으로 삼고 구조화된 지명·인명 색인, 공기(共起) 군집,
+그리고 선택적 LLM 직역 보조 인덱스를 함께 제공한다.
 
-원사료 기반 역사지리 연구를 위해, LLM에게 정제된 검색 결과를 제공하는 것을 목표로 한다.
+[![npm](https://img.shields.io/npm/v/kr-history-bm25.svg)](https://www.npmjs.com/package/kr-history-bm25)
+![license](https://img.shields.io/badge/license-MIT-blue.svg)
+![node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)
 
-## 설계 원칙
+---
 
-- **신뢰의 근거는 언제나 한자 원문.** 제공된 한글 번역은 원문과 무관하게 번역된 사례가 있어 채택하지 않는다.
-- **이원 인덱스** — 주 인덱스는 한자 원문(BM25), 보조 인덱스는 우리가 직접 LLM으로 *직역*한 데이터.
-- **한자 엄격 구분** — 글자 단위(unigram) 색인 + FTS5 구문 검색으로 동음이의 한자를 정확히 구분한다.
-- **군집 분석 지지** — `<index>` 구조화 색인으로 지명·인물 조회와 기사 단위 co-occurrence(군집) 검색을 제공한다.
+## English Overview
 
-## 검색 프리미티브
+`kr-history-bm25` turns Korean historical source texts (from the National Institute of Korean
+History database — 국사편찬위원회 한국사DB) into a self-contained, searchable **SQLite BM25 corpus**.
 
-| 기능 | API | CLI |
-|---|---|---|
-| 한자 전문검색(BM25) | `searchHan()` | `krh search "卒本"` |
-| 직역 전문검색(보조) | `searchKo()` | `krh search "졸본" --index ko` |
-| 지명·인물 구조 조회 | `lookupPlace()` | `krh place "遼西"` |
-| 지명 군집(co-occurrence) | `cluster()` | `krh cluster "卒本"` |
-| 이표기 동시검색(졸본=홀본) | `withVariants()` | — |
-
-## 사용
+- **Hanja-primary full-text search** (BM25 over classical Chinese, character-unigram tokenized).
+- **Structured place/person index** and **co-occurrence clustering** for toponym identification.
+- **Optional LLM literal-translation** secondary index (Korean) for concept-level discovery.
+- Exposes an **MCP server** (`krh-mcp`) so LLM clients call the corpus as tools.
+- Ships a **pre-built corpus** — `npm i` and query, no XML ingestion needed.
 
 ```bash
-# ① XML → SQLite 코퍼스 + 구조화 색인
-krh ingest "source/…삼국사기 원문…" --db history.sqlite
-
-# ② LLM 직역 → 보조 코퍼스 (증분·재개)
-krh translate --provider claude --limit 100 --resume
-
-# ③ 검색
-krh search "卒本"
-krh cluster "卒本"
-krh place "遼西"
+npm install kr-history-bm25
 ```
 
 ```ts
-import { openHistoryDb } from 'kr-history-bm25';
+import { openBundledDb } from 'kr-history-bm25';
 
-const db = await openHistoryDb('history.sqlite');
-await db.searchHan('卒本', { limit: 20 });
-await db.cluster('卒本', { scope: 'node' });
+const db = await openBundledDb();
+const hits = await db.searchHan('浿水', { limit: 10 }); // BM25-ranked passages
+db.close();
 ```
 
-### 동봉 코퍼스로 즉시 사용 (XML·ingest 불필요)
+The design principle: **the hanja source is always the authority.** Translations are a secondary
+discovery layer, never the basis of a conclusion. See the methodology section below.
 
-패키지에 사전 구축 코퍼스(5종 전체, 한자 주 인덱스)가 gzip으로 동봉되어 있다.
-`openBundledDb()`는 첫 호출 시 `data/`로 1회 압축 해제한 뒤 바로 검색을 제공한다.
+---
+
+## 개요 · 설계 원칙
+
+이 도구는 사료 검색을 넘어 **역사지리 비정(比定)** 연구를 위한 기반이다. 원사료를 최우선 기준으로,
+LLM에게 정제된 검색 결과를 제공하는 것을 목표로 한다. 설계는 `source/context.md`의 방법론 원칙을 따른다.
+
+- **사서 원문 최우선.** 신뢰의 기준은 언제나 한자 원문이다. 제공된 한글 번역은 배제한다
+  (원문과 무관한 오역 이력 때문). 보조 인덱스는 우리가 직접 직역한 데이터다.
+- **후대의 지명 이동·왜곡 가능성**을 항상 전제한다. "역사는 승자의 기록일 수 있다."
+- **지명 단독 비교 금지.** 반드시 주변 지명과의 **군집(cluster)** 으로 판단한다 — 동일 반경 내
+  행정·방어·교통·산·하천 지명이 함께 존재해야 한다.
+- **확정 표현을 쓰지 않는다.** "고신뢰 비정 가능성", "군집 기준에서 가장 일치" 수준만 허용한다.
+  AI는 결론 제시자가 아니라 **논증 정리·구조화·검증 보조**다.
+
+> 수계(하천) 위계 코드처럼 사서의 용례를 존중한다: 하(河)=황하급 대하, 강(江)=양자강급,
+> 수(水)=중·소 하천, 천(川)=지류·계곡급. 현대 지형 크기로 판단하지 않는다.
+
+---
+
+## 설치 & 빠른 시작
+
+```bash
+npm install kr-history-bm25
+```
+
+동봉된 사전 구축 코퍼스(`data/history.sqlite.gz`)를 첫 사용 시 자동 해제해 연다. **XML·ingest 불필요.**
 
 ```ts
 import { openBundledDb } from 'kr-history-bm25';
 
 const db = await openBundledDb(); // 첫 호출: data/history.sqlite로 압축 해제(~1-2초)
-await db.searchHan('浿水');
-await db.cluster('浿水', { neighborType: '지명' }); // 遼東·玄菟·王險·臨屯·遼水 …
+
+// 1) 한자 원문 검색 (주 인덱스) — 지명·인명 등 고유명사에 사용
+const byHan = await db.searchHan('浿水', { limit: 10 });
+
+// 2) 직역 검색 (보조 인덱스) — 사건·현상·서술어에 사용
+const byKo = await db.searchKo('일식', { limit: 10 });
+
+// 3) 공기 군집 — 같은 기사에 함께 등장한 지명 (遼東·玄菟·王險 …)
+const near = await db.cluster('浿水', { neighborType: '지명', limit: 20 });
+
+// 4) 구조화 출현 위치
+const occ = await db.lookupPlace('浿水', { type: '지명' });
+
+// 5) 이표기 확장 검색 (예: 졸본=홀본)
+const variants = await db.withVariants('卒本');
+
+db.close();
 ```
 
-> 동봉본은 한자 주 인덱스만 포함한다. 직역(보조) 인덱스는 `db.translate()`로 증분 생성한다.
+> 동봉본은 한자 주 인덱스가 핵심이다. 직역(보조) 인덱스는 `db.translate()`로 증분 생성하며,
 > 유지보수자는 `npm run build:corpus`로 `source/`에서 동봉본을 재생성한다.
+
+CLI로도 동일하게 쓸 수 있다:
+
+```bash
+npx krh search 浿水 --index han --limit 10
+npx krh search 일식 --index ko
+npx krh cluster 浿水 --neighbor-type 지명
+npx krh place 浿水 --type 지명
+```
+
+---
+
+## 이원 인덱스(dual-index) 설계
+
+검색은 두 개의 독립 BM25 인덱스로 구성된다.
+
+| 인덱스 | 대상 | 언제 쓰나 | 함수 |
+|--------|------|-----------|------|
+| **주(primary)** | 한자 원문 | 지명·인명·관직 등 **고유명사** — 한자가 authoritative | `searchHan` |
+| **보조(secondary)** | LLM 직역(한국어) | 사건·현상·서술어(일식·전쟁·항복 등) — 번역 완료분 한정 | `searchKo` |
+
+**왜 한자가 주인가.** 원문이 신뢰 근거이고 번역은 보조 발견층이다. 고유명사는 한글로 검색하면
+재현율이 떨어진다(예: `浿水` 원문검색 vs '패수' 한글검색). 반대로 사건·서술어는 직역이 자연스럽다.
+
+> 실무 요약: **고유명사 → `searchHan`**, **사건·서술어 → `searchKo`**(번역 완료 코퍼스 한정).
+
+---
+
+## BM25 랭킹 (학술)
+
+전문검색 관련도는 **Okapi BM25** 로 계산한다. 질의 $Q = \{q_1, \dots, q_n\}$에 대한 문서 $D$의 점수는:
+
+$$
+\text{score}(D, Q) = \sum_{i=1}^{n} \text{IDF}(q_i) \cdot
+\frac{f(q_i, D)\,(k_1 + 1)}{f(q_i, D) + k_1 \left(1 - b + b \cdot \dfrac{|D|}{\text{avgdl}}\right)}
+$$
+
+역문서빈도(IDF)는 다음과 같다($N$=전체 문서 수, $n(q_i)$=$q_i$를 포함한 문서 수):
+
+$$
+\text{IDF}(q_i) = \ln\!\left( \frac{N - n(q_i) + 0.5}{n(q_i) + 0.5} + 1 \right)
+$$
+
+기호 정리:
+
+| 기호 | 의미 | 이 프로젝트에서 |
+|------|------|------------------|
+| $f(q_i, D)$ | 문서 $D$ 안에서 항 $q_i$의 빈도 | passage 내 해당 한자(또는 음절) 빈도 |
+| $\lvert D \rvert$ | 문서 길이 | passage 글자수 |
+| $\text{avgdl}$ | 평균 문서 길이 | 전체 passage 평균 글자수 |
+| $N$ | 전체 문서 수 | 전체 passage 수 |
+| $k_1$ | 항 빈도 포화 계수 | **1.2** (SQLite FTS5 기본) |
+| $b$ | 길이 정규화 강도 | **0.75** (SQLite FTS5 기본) |
+
+- **문서 단위 = passage.** BM25 문서는 한 문단(passage)이며, 기사(node) 단위 군집은 별도 색인으로 처리한다.
+- **엔진 = SQLite FTS5의 내장 `bm25()`.** `tokenize='unicode61'`, external content 방식으로
+  `passage` 테이블과 동기화된다.
+- **부호 규약(중요).** FTS5의 `bm25()`는 **관련도가 높을수록 더 작은(더 음수인) 값**을 반환한다.
+  따라서 정렬은 오름차순(`ORDER BY score`)이며, 반환된 `score`는 "작을수록 관련 높음"으로 해석한다.
+
+```sql
+-- src/search/search-han.ts 발췌
+SELECT p.id, p.text_han, bm25(passage_fts_han) AS score
+  FROM passage_fts_han f
+  JOIN passage p ON p.id = f.rowid
+ WHERE passage_fts_han MATCH ?
+ ORDER BY score          -- 오름차순: 더 음수 = 더 관련
+ LIMIT ?;
+```
+
+---
+
+## 토큰화 — 왜 글자 단위 unigram인가
+
+고전 한문은 띄어쓰기가 없고, 지명 한자는 **엄격히 구분**해야 한다(동음이의 지명 판별의 전제).
+그래서 토큰을 **글자(codepoint) 단위 unigram**으로 색인한다.
+
+```
+'卒本川'  →  '卒 本 川'          (색인)
+'卒本'    →  "卒 本"             (질의 — phrase로 정확 인접 매칭)
+```
+
+- **주 인덱스(한자)**: `hanToUnigram()`이 CJK 한자만 남겨 글자 단위로 분해한다. 확장 B~F 영역
+  (surrogate pair, 한국고대사료집성 희귀자)까지 커버한다. 검색어는 `buildPhraseQuery()`로
+  큰따옴표 phrase(`"卒 本"`)로 감싸 인접 정확 매칭한다.
+- **보조 인덱스(직역)**: `koToUnigram()`이 한글 음절·한자는 글자 단위로, ASCII 영숫자는 런으로
+  유지한다(`'BC57년'` → `'BC 57 년'`). 음절 단위 색인으로 **조사 결합을 극복**한다
+  (검색어 '일식'이 본문 '일식이'를 매칭).
+
+관련 코드: `src/ingest/tokenizer.ts`.
+
+---
+
+## API 레퍼런스
+
+`openBundledDb()`(동봉본) 또는 `openHistoryDb(path)`(임의 파일)로 `HistoryDb` 핸들을 얻는다.
+
+| 메서드 | 설명 | 반환 |
+|--------|------|------|
+| `searchHan(term, opts?)` | 한자 원문 BM25 검색 | `SearchHit[]` |
+| `searchKo(term, opts?)` | 직역(보조) BM25 검색 | `KoSearchHit[]` |
+| `lookupPlace(surface, opts?)` | 표기 출현 위치 구조화 조회 | `PlaceOccurrence[]` |
+| `cluster(surface, opts?)` | 같은 기사 공기 개체(군집) | `ClusterNeighbor[]` |
+| `withVariants(surface, opts?)` | 이표기 확장 검색 | `VariantSearchResult` |
+| `addVariantGroup(members, note?, source?)` | 이표기 그룹 수동 등록 | `number` |
+| `close()` | 연결 종료 | `void` |
+
+공통 옵션: `limit`(최대 결과 수), `corpusCode`(코퍼스 제한), `type`/`neighborType`(개체 유형).
+
+```ts
+interface SearchHit {
+  passageId: number;
+  nodeId: string;
+  corpusCode: string;
+  textHan: string;
+  score: number; // FTS5 bm25 — 작을수록 관련 높음
+}
+```
+
+전체 export는 `src/index.ts` 참조(ingest·translate·reading 파이프라인 API 포함).
+
+---
+
+## CLI 레퍼런스 (`krh`)
+
+```bash
+krh <command> [options]     # 전역 옵션: --db <path> (기본 KRH_DB 또는 history.sqlite)
+```
+
+| 커맨드 | 설명 |
+|--------|------|
+| `search <term> --index han\|ko --limit <n>` | 한자(주)/직역(보조) BM25 검색 |
+| `cluster <surface> --type --neighbor-type --limit` | 공기 군집(같은 기사 이웃 개체) |
+| `place <surface> --type --limit` | 표기 출현 위치 조회 |
+| `ingest <dir> --code --name` | XML 사서 디렉터리를 주 코퍼스로 적재 |
+| `translate --provider --limit --corpus` | 미완 본문 증분 직역 |
+| `translate-export` / `translate-import <file>` | 구독 모델 배치 직역 내보내기/적재 |
+| `reading-build` / `reading-export` / `reading-import <file>` | 독음 사전 구축·검수 |
+
+`KRH_DB` 환경변수로 기본 DB 경로를 지정할 수 있다.
+
+---
+
+## MCP 서버 (`krh-mcp`)
+
+동봉 코퍼스를 **MCP(Model Context Protocol) 도구로 LLM 클라이언트에 직접 노출**한다(stdio).
+Claude 등에서 검색·군집·조회를 도구로 호출하고, 비정 방법론 가이드를 prompt로 받는다.
+
+**클라이언트 등록 예** (Claude Desktop/Code 등의 MCP 설정):
+
+```json
+{
+  "mcpServers": {
+    "kr-history": { "command": "krh-mcp" }
+  }
+}
+```
+
+전역 설치했다면 `krh-mcp`, 아니면 `npx -y -p kr-history-bm25 krh-mcp`. `KRH_DB` 환경변수를 주면
+동봉본 대신 지정 코퍼스를 연다.
+
+**도구 5종** (파사드에 1:1, JSON 반환):
+
+| 도구 | 용도 |
+|------|------|
+| `search_han` | 한자 원문 BM25 — 지명·인명 등 **고유명사** |
+| `search_ko` | 직역 BM25 — 일식·전쟁 등 **사건·서술어**(번역 완료분) |
+| `lookup_place` | 표기 출현 위치 구조화 조회 |
+| `cluster` | 같은 기사 공기(共起) 군집 |
+| `with_variants` | 이표기 확장 검색(졸본=홀본) |
+
+**가이드 prompt** — `toponym-identification-guide`: 사서 원문·군집·지도 교차로 지명을 비정하는
+방법론(확정 표현 금지, 결론은 사람 몫)을 제공한다.
+
+---
+
+## 코퍼스 구성 · 현황 (v0.1.0)
+
+- **한자 BM25 5종** — 삼국사기·삼국유사·고려사·고려사절요·한국고대사료집성.
+- **직역 완료(코어)** — 삼국사기·삼국유사 **6,838건** 직역 → 보조 인덱스 구축 완료.
+- **직역 예정** — 고려사·한국고대사료집성·고려사절요 약 **68,022건**(0.2.0+).
+- **독음 레이어** — 원음(原音) 1차 / 관용 주석. Unihan kHangul(글자 합성 95.5%) + 표준국어대사전
+  관용 + 두음법칙 + 학술 시드 + LLM 예외 검수.
+- 동봉 코퍼스 `data/history.sqlite.gz` (~38MB).
+
+---
+
+## 데이터 모델 개요
+
+| 테이블 | 역할 |
+|--------|------|
+| `corpus` | 사서 단위 |
+| `node` | 계층 구조(본기·지리지·열전 …), 기사=군집 단위 |
+| `passage` | 문단 = **BM25 문서 단위** |
+| `entity` / `entity_mention` | 지명·인명 등 개체와 출현 매핑(구조화 색인) |
+| `annotation` | 주석(협주 등) |
+| `variant_group` / `variant_member` | 이표기 그룹(졸본=홀본 등) |
+| `translation` | 직역 결과(보조 인덱스 원천) |
+| `passage_fts_han` / `passage_fts_ko` | FTS5 가상테이블(주/보조 BM25) |
+
+스키마 원본: `src/db/migrations/0001-init.ts` (hand-written SQL, unicode61 FTS5).
+
+---
 
 ## 개발
 
@@ -67,11 +300,28 @@ await db.cluster('浿水', { neighborType: '지명' }); // 遼東·玄菟·王�
 npm install
 npm test          # vitest
 npm run build     # tsup → ESM + CJS + d.ts
-npm run validate  # lint + format + typecheck + test
+npm run validate  # lint + format:check + typecheck(tsc --noEmit) + test
 ```
 
-Node ≥ 20. 개발 규율은 `CW-AP-D03 개발표준정의서`를 준용한다(명명·TDD·SQL·리팩토링 표준).
+Node ≥ 20. 드라이버는 `@libsql/client`(+drizzle-orm), FTS5 마이그레이션은 hand-written이다.
+개발 규율은 `CW-AP-D03 개발표준정의서`를 준용한다(명명·TDD·SQL·리팩토링 표준).
 
-## 라이선스
+---
 
-MIT © shyang
+## 로드맵
+
+- ✅ **MCP 서버** (`krh-mcp`, 0.2.0 예정) — 도구 5종 + 비정 가이드로 LLM에 직접 노출. (위 절 참조)
+- **하이브리드 검색** — 벡터 KNN(의미 발견층) + BM25 재랭킹, 그 위에 **DBSCAN 군집층**(밀도 기반).
+  libsql 네이티브 벡터(동봉 파일 내 F32_BLOB) 활용.
+- **퍼지 군집(FDBSCAN)** — 경계·이표기의 군집 소속을 등급(가능성)으로. "확정 금지" 방법론과 정합.
+- **웹 UI 시각화** — 지명 군집 force graph, 좌표 플롯, 한자↔직역 병렬 뷰.
+- **Python wrapper** — 연구자 파이썬 분석 창구(pandas/scikit-learn 연동). 코어 알고리즘은 TS.
+
+---
+
+## 라이선스 · 출처
+
+- **라이선스: MIT** © shyang.
+- **데이터 출처: 국사편찬위원회 한국사 데이터베이스.** 원자료의 권리는 해당 기관에 있으며, 본
+  패키지는 검색 색인 구축과 연구 보조를 목적으로 한다.
+- 이 도구는 결론을 제시하지 않는다. 모든 비정·해석의 판단은 연구자의 몫이다.

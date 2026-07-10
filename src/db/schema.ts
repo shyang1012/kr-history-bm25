@@ -200,3 +200,55 @@ export const translation = sqliteTable(
     statusIdx: index('translation_status_idx').on(t.status),
   }),
 );
+
+/** 글자 독음(char) — Unihan kHangul 원천. 개체 독음 합성의 재료. 복수 독음은 seq로 다음자(多音字) 식별 */
+export const charReading = sqliteTable(
+  'char_reading',
+  {
+    /** 독음ID · PK · 자동증가 */
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    /** 한자 1자 */
+    char: text('char').notNull(),
+    /** 독음(한글) */
+    reading: text('reading').notNull(),
+    /** 출처 · unihan_khangul 등 */
+    source: text('source').notNull(),
+    /** Unihan 표기 순번 · 한 char에 행 2개+ = 다음자 */
+    seq: integer('seq').notNull().default(0),
+    /** 이 독음이 두음변화형인지(관용측) · 0/1 */
+    isDueum: integer('is_dueum').notNull().default(0),
+  },
+  (t) => ({
+    charReadingUq: uniqueIndex('char_reading_char_reading_uq').on(t.char, t.reading),
+    charIdx: index('char_reading_char_idx').on(t.char),
+  }),
+);
+
+/** 개체 독음 — 원음(original·primary)/관용(conventional·주석) 이중 레이어. reading_type별 adopted 1개(partial unique는 마이그레이션이 관리) */
+export const entityReading = sqliteTable(
+  'entity_reading',
+  {
+    /** 독음ID · PK · 자동증가 */
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    /** 개체ID · FK → entity.id */
+    entityId: integer('entity_id').notNull(),
+    /** 독음(한글) · 확정 불가 시 null */
+    reading: text('reading'),
+    /** 레이어 · 'original'(원음·primary) | 'conventional'(관용·주석) */
+    readingType: text('reading_type').notNull(),
+    /** 출처 · 'synth' | 'rule' | 'dict' | 'llm' | 'seed' */
+    source: text('source').notNull(),
+    /** 신뢰도 점수 */
+    confidence: integer('confidence').notNull().default(0),
+    /** 상태 · 'draft'|'auto_confirmed'|'llm_verified'|'seeded'|'failed' */
+    status: text('status').notNull().default('draft'),
+    /** 채택 여부 · 0/1(타입별 1개) */
+    adopted: integer('adopted').notNull().default(0),
+    /** 생성 시각 · ISO8601 */
+    createdAt: text('created_at'),
+  },
+  (t) => ({
+    entityReadingUq: uniqueIndex('entity_reading_uq').on(t.entityId, t.readingType, t.source),
+    statusIdx: index('entity_reading_status_idx').on(t.status),
+  }),
+);

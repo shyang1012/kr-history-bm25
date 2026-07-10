@@ -135,6 +135,65 @@ cli
   });
 
 cli
+  .command('reading-ingest-unihan <file>', 'Unihan_Readings.txt를 char_reading에 적재')
+  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
+  .action(async (file: string, opts: { db: string }) => {
+    const db = await openHistoryDb(opts.db);
+    const stats = await db.ingestUnihan(file);
+    db.close();
+    console.log(`[reading-ingest-unihan] chars=${stats.chars} readings=${stats.readings}`);
+  });
+
+cli
+  .command('reading-build', '독음 사전 구축(원음 확정 → 관용 도출)')
+  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
+  .option('--seeds <path>', '학술시드 JSON', { default: 'data/reading-seeds.json' })
+  .option('--dict <glob>', '표준국어대사전 JSON 디렉터리(쉼표 구분 파일 경로)')
+  .action(async (opts: { db: string; seeds?: string; dict?: string }) => {
+    const db = await openHistoryDb(opts.db);
+    const dictPaths = opts.dict ? opts.dict.split(',').map((s) => s.trim()) : undefined;
+    const stats = await db.buildReadings({ seedsPath: opts.seeds, dictPaths });
+    db.close();
+    console.log(
+      `[reading-build] entities=${stats.entities} original(confirmed)=${stats.originalConfirmed} ` +
+        `draft=${stats.originalDraft} conventional=${stats.conventionalAdopted} ` +
+        `has_variant=${stats.variants} reviewChars=${stats.reviewChars.length}`,
+    );
+  });
+
+cli
+  .command('reading-export', '원음 미확정 char(진짜 다음자·희귀자)를 검수용 JSON으로 내보내기')
+  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
+  .option('--seeds <path>', '학술시드 JSON', { default: 'data/reading-seeds.json' })
+  .option('--out <path>', '출력 JSON 경로', { default: 'tmp/reading-review.json' })
+  .action(async (opts: { db: string; seeds?: string; out: string }) => {
+    const db = await openHistoryDb(opts.db);
+    const result = await db.exportReadingChars(opts.seeds);
+    db.close();
+    mkdirSync(dirname(opts.out), { recursive: true });
+    writeFileSync(opts.out, JSON.stringify(result, null, 2), 'utf-8');
+    console.log(`[reading-export] count=${result.count} → ${opts.out}`);
+  });
+
+cli
+  .command('reading-import <file>', 'char 검수 결과 JSON을 적재')
+  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
+  .option('--seeds <path>', '학술시드 JSON', { default: 'data/reading-seeds.json' })
+  .action(async (file: string, opts: { db: string; seeds?: string }) => {
+    const raw: unknown = JSON.parse(readFileSync(file, 'utf-8'));
+    const list = Array.isArray(raw) ? raw : (raw as { chars?: unknown }).chars;
+    if (!Array.isArray(list)) {
+      throw new Error('결과 파일 형식이 올바르지 않습니다(배열 또는 {chars:[]} 필요)');
+    }
+    const db = await openHistoryDb(opts.db);
+    const stats = await db.importReadingChars(list as never, opts.seeds);
+    db.close();
+    console.log(
+      `[reading-import] imported=${stats.imported} failed=${stats.failed} remaining=${stats.remaining}`,
+    );
+  });
+
+cli
   .command('search <term>', '한자(주) 또는 직역(보조) BM25 검색')
   .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
   .option('--index <index>', 'han|ko', { default: 'han' })
@@ -201,7 +260,7 @@ cli
   });
 
 cli.help();
-cli.version('0.1.0');
+cli.version('0.2.0');
 
 async function main(): Promise<void> {
   cli.parse(process.argv, { run: false });
