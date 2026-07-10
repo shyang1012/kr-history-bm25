@@ -22,7 +22,7 @@ import { registerTools } from './tools';
 import { registerGuidePrompt } from './guide';
 
 /** 서버 버전(CLI와 동일 관례로 고정) */
-const MCP_VERSION = '0.1.0';
+const MCP_VERSION = '0.2.0';
 
 /**
  * MCP 도구가 소비하는 코퍼스 표면. HistoryDb가 구조적으로 만족한다(테스트는 스텁 주입).
