@@ -1,0 +1,24 @@
+{
+  "channel": {
+    "item": [
+      {
+        "word_info": {
+          "word": "김유신",
+          "original_language_info": [{ "original_language": "金庾信", "language_type": "한자" }]
+        }
+      },
+      {
+        "word_info": {
+          "word": "고려01",
+          "original_language_info": [{ "original_language": "高麗", "language_type": "한자" }]
+        }
+      },
+      {
+        "word_info": {
+          "word": "사랑",
+          "original_language_info": [{ "original_language": "", "language_type": "고유어" }]
+        }
+      }
+    ]
+  }
+}

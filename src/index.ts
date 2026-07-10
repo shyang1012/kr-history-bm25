@@ -64,3 +64,21 @@ export type {
   PlaceOccurrence,
 } from './types';
 export { parseDocument } from './parser/document-parser';
+
+// 독음 사전(krh-cun) — 원음 1차 / 관용 주석
+export { ingestUnihan, type IngestUnihanResult } from './reading/ingest-unihan';
+export { toDueum } from './reading/dueum';
+export { synthesizeOriginal, type CharCandidate, type SynthResult } from './reading/synthesize';
+export { deriveConventional, type ConventionalResult } from './reading/conventional';
+export { buildDictIndex } from './reading/dict-source';
+export { loadCharMap, adoptReading, saveDraft, type ReadingInput } from './reading/reading-store';
+export { loadSeeds, type Seeds, type SeedEntry } from './reading/seed';
+export { buildReadings, type BuildStats } from './reading/build-readings';
+export {
+  exportPendingReadingChars,
+  importReadingChars,
+  type PendingChar,
+  type ReadingExport,
+  type ReadingResult,
+  type ImportStats,
+} from './reading/batch';

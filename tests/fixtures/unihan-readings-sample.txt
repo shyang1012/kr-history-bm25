@@ -1,0 +1,10 @@
+# Unihan_Readings.txt 샘플 (kHangul 발췌) — 독음 사전 ingest 테스트용
+U+9E97	kHangul	려:0E 여:0
+U+90AF	kHangul	감:0N 한:N
+U+9AD8	kHangul	고:0E
+U+9E9F	kHangul	린:0N 인:0
+U+674E	kHangul	리:0E 이:0
+U+59DC	kHangul	강:0E
+U+912D	kHangul	정:0E
+U+8DBE	kHangul	지:0E
+U+9E97	kDefinition	beautiful, magnificent, elegant

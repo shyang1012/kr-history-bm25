@@ -21,6 +21,18 @@ import {
   type ImportResultsOptions,
   type ImportResultsStats,
 } from './translate/batch';
+import { ingestUnihan, type IngestUnihanResult } from './reading/ingest-unihan';
+import { loadCharMap } from './reading/reading-store';
+import { buildDictIndex } from './reading/dict-source';
+import { loadSeeds, type Seeds } from './reading/seed';
+import { buildReadings, type BuildStats } from './reading/build-readings';
+import {
+  exportPendingReadingChars,
+  importReadingChars,
+  type ReadingExport,
+  type ReadingResult,
+  type ImportStats,
+} from './reading/batch';
 import { searchHan, type SearchHanOptions } from './search/search-han';
 import { searchKo, type SearchKoOptions } from './search/search-ko';
 import { lookupPlace, type LookupOptions } from './search/lookup-place';
@@ -101,6 +113,35 @@ export class HistoryDb {
   /** 이표기 그룹 등록(수동 시드) */
   addVariantGroup(members: VariantMemberSpec[], note?: string, source?: string): Promise<number> {
     return addVariantGroup(this.conn.client, members, note, source);
+  }
+
+  /** Unihan_Readings.txt(kHangul)를 char_reading에 적재한다(독음 사전 재료) */
+  ingestUnihan(readingsPath: string): Promise<IngestUnihanResult> {
+    return ingestUnihan(this.conn, { readingsPath });
+  }
+
+  /** 독음 사전을 구축한다(원음 확정 → 관용 도출). 시드·표준국어대사전 소스를 결합한다 */
+  async buildReadings(opts?: { seedsPath?: string; dictPaths?: string[] }): Promise<BuildStats> {
+    const charMap = await loadCharMap(this.conn.client);
+    const dict = opts?.dictPaths?.length
+      ? buildDictIndex(opts.dictPaths)
+      : new Map<string, string>();
+    const seeds: Seeds = opts?.seedsPath
+      ? loadSeeds(opts.seedsPath)
+      : { charSeeds: new Map(), surfaceSeeds: new Map() };
+    return buildReadings(this.conn, { charMap, dict, seeds });
+  }
+
+  /** 원음 확정이 안 된 char(진짜 다음자·희귀자)를 검수 대상으로 내보낸다 */
+  exportReadingChars(seedsPath?: string): Promise<ReadingExport> {
+    const seeds = seedsPath ? loadSeeds(seedsPath) : undefined;
+    return exportPendingReadingChars(this.conn, { seeds });
+  }
+
+  /** char 검수 결과를 적재한다(verified는 확정, failed는 카운트만) */
+  importReadingChars(results: ReadingResult[], seedsPath?: string): Promise<ImportStats> {
+    const seeds = seedsPath ? loadSeeds(seedsPath) : undefined;
+    return importReadingChars(this.conn, results, { seeds });
   }
 
   /** 연결을 닫는다 */
