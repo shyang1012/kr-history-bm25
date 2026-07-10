@@ -260,7 +260,7 @@ cli
   });
 
 cli.help();
-cli.version('0.2.0');
+cli.version('0.2.1');
 
 async function main(): Promise<void> {
   cli.parse(process.argv, { run: false });

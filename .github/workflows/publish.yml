@@ -24,8 +24,9 @@ jobs:
           node-version: 22
           registry-url: "https://registry.npmjs.org"
 
-      # OIDC Trusted Publisher 는 npm 11.5.1+ 필요
-      - run: npm install -g npm@latest
+      # OIDC Trusted Publisher 는 npm 11.5.1+ 필요.
+      # npm@latest(12.x)는 provenance용 sigstore 번들 회귀(npm/cli#9722)라 최신 11.x로 고정한다.
+      - run: npm install -g npm@11
 
       - run: npm ci
 
