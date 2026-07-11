@@ -1,0 +1,1026 @@
+{
+  "run_id": "krh4lr-20260711-161229",
+  "count": 170,
+  "chars": [
+    {
+      "char": "㒷",
+      "via": "興",
+      "viaField": "kSemanticVariant",
+      "reading": "흥"
+    },
+    {
+      "char": "䖍",
+      "via": "虔",
+      "viaField": "kSemanticVariant",
+      "reading": "건"
+    },
+    {
+      "char": "䖏",
+      "via": "処",
+      "viaField": "kSemanticVariant",
+      "reading": "처"
+    },
+    {
+      "char": "䭾",
+      "via": "馱",
+      "viaField": "kSemanticVariant",
+      "reading": "타"
+    },
+    {
+      "char": "丐",
+      "via": "匃",
+      "viaField": "kSemanticVariant",
+      "reading": "개"
+    },
+    {
+      "char": "两",
+      "via": "兩",
+      "viaField": "kSemanticVariant",
+      "reading": "량"
+    },
+    {
+      "char": "个",
+      "via": "個",
+      "viaField": "kSemanticVariant",
+      "reading": "개"
+    },
+    {
+      "char": "义",
+      "via": "義",
+      "viaField": "kSemanticVariant",
+      "reading": "의"
+    },
+    {
+      "char": "伷",
+      "via": "冑",
+      "viaField": "kSemanticVariant",
+      "reading": "주"
+    },
+    {
+      "char": "偁",
+      "via": "稱",
+      "viaField": "kSemanticVariant",
+      "reading": "칭"
+    },
+    {
+      "char": "傜",
+      "via": "徭",
+      "viaField": "kSemanticVariant",
+      "reading": "요"
+    },
+    {
+      "char": "兹",
+      "via": "玆",
+      "viaField": "kSemanticVariant",
+      "reading": "자"
+    },
+    {
+      "char": "内",
+      "via": "內",
+      "viaField": "kTraditionalVariant",
+      "reading": "내"
+    },
+    {
+      "char": "况",
+      "via": "況",
+      "viaField": "kSemanticVariant",
+      "reading": "황"
+    },
+    {
+      "char": "凈",
+      "via": "淨",
+      "viaField": "kSemanticVariant",
+      "reading": "정"
+    },
+    {
+      "char": "凾",
+      "via": "函",
+      "viaField": "kSemanticVariant",
+      "reading": "함"
+    },
+    {
+      "char": "刘",
+      "via": "劉",
+      "viaField": "kSemanticVariant",
+      "reading": "류"
+    },
+    {
+      "char": "删",
+      "via": "刪",
+      "viaField": "kSemanticVariant",
+      "reading": "산"
+    },
+    {
+      "char": "别",
+      "via": "別",
+      "viaField": "kTraditionalVariant",
+      "reading": "별"
+    },
+    {
+      "char": "勗",
+      "via": "勖",
+      "viaField": "kSemanticVariant",
+      "reading": "욱"
+    },
+    {
+      "char": "勰",
+      "via": "協",
+      "viaField": "kSemanticVariant",
+      "reading": "협"
+    },
+    {
+      "char": "匵",
+      "via": "櫝",
+      "viaField": "kSemanticVariant",
+      "reading": "독"
+    },
+    {
+      "char": "卧",
+      "via": "臥",
+      "viaField": "kSemanticVariant",
+      "reading": "와"
+    },
+    {
+      "char": "卭",
+      "via": "卬",
+      "viaField": "kSemanticVariant",
+      "reading": "앙"
+    },
+    {
+      "char": "吒",
+      "via": "咤",
+      "viaField": "kSemanticVariant",
+      "reading": "타"
+    },
+    {
+      "char": "吕",
+      "via": "呂",
+      "viaField": "kTraditionalVariant",
+      "reading": "려"
+    },
+    {
+      "char": "吞",
+      "via": "呑",
+      "viaField": "kSemanticVariant",
+      "reading": "탄"
+    },
+    {
+      "char": "吨",
+      "via": "噸",
+      "viaField": "kTraditionalVariant",
+      "reading": "톤"
+    },
+    {
+      "char": "吴",
+      "via": "吳",
+      "viaField": "kTraditionalVariant",
+      "reading": "오"
+    },
+    {
+      "char": "呉",
+      "via": "吳",
+      "viaField": "kSemanticVariant",
+      "reading": "오"
+    },
+    {
+      "char": "囘",
+      "via": "回",
+      "viaField": "kSemanticVariant",
+      "reading": "회"
+    },
+    {
+      "char": "囯",
+      "via": "國",
+      "viaField": "kSemanticVariant",
+      "reading": "국"
+    },
+    {
+      "char": "圅",
+      "via": "函",
+      "viaField": "kSemanticVariant",
+      "reading": "함"
+    },
+    {
+      "char": "夀",
+      "via": "壽",
+      "viaField": "kSemanticVariant",
+      "reading": "수"
+    },
+    {
+      "char": "奥",
+      "via": "奧",
+      "viaField": "kTraditionalVariant",
+      "reading": "오"
+    },
+    {
+      "char": "奨",
+      "via": "奬",
+      "viaField": "kTraditionalVariant",
+      "reading": "장"
+    },
+    {
+      "char": "孽",
+      "via": "孼",
+      "viaField": "kSemanticVariant",
+      "reading": "얼"
+    },
+    {
+      "char": "它",
+      "via": "佗",
+      "viaField": "kSemanticVariant",
+      "reading": "타"
+    },
+    {
+      "char": "宫",
+      "via": "宮",
+      "viaField": "kTraditionalVariant",
+      "reading": "궁"
+    },
+    {
+      "char": "宻",
+      "via": "密",
+      "viaField": "kSemanticVariant",
+      "reading": "밀"
+    },
+    {
+      "char": "寳",
+      "via": "宝",
+      "viaField": "kSemanticVariant",
+      "reading": "보"
+    },
+    {
+      "char": "尒",
+      "via": "尔",
+      "viaField": "kSemanticVariant",
+      "reading": "이"
+    },
+    {
+      "char": "届",
+      "via": "屆",
+      "viaField": "kSemanticVariant",
+      "reading": "계"
+    },
+    {
+      "char": "岀",
+      "via": "出",
+      "viaField": "kSemanticVariant",
+      "reading": "출"
+    },
+    {
+      "char": "峡",
+      "via": "峽",
+      "viaField": "kTraditionalVariant",
+      "reading": "협"
+    },
+    {
+      "char": "帒",
+      "via": "袋",
+      "viaField": "kSemanticVariant",
+      "reading": "대"
+    },
+    {
+      "char": "庙",
+      "via": "廟",
+      "viaField": "kSemanticVariant",
+      "reading": "묘"
+    },
+    {
+      "char": "廪",
+      "via": "廩",
+      "viaField": "kTraditionalVariant",
+      "reading": "름"
+    },
+    {
+      "char": "廸",
+      "via": "迪",
+      "viaField": "kSemanticVariant",
+      "reading": "적"
+    },
+    {
+      "char": "异",
+      "via": "異",
+      "viaField": "kTraditionalVariant",
+      "reading": "리"
+    },
+    {
+      "char": "愻",
+      "via": "遜",
+      "viaField": "kSemanticVariant",
+      "reading": "손"
+    },
+    {
+      "char": "愽",
+      "via": "博",
+      "viaField": "kSemanticVariant",
+      "reading": "박"
+    },
+    {
+      "char": "慞",
+      "via": "傽",
+      "viaField": "kSemanticVariant",
+      "reading": "장"
+    },
+    {
+      "char": "户",
+      "via": "戶",
+      "viaField": "kTraditionalVariant",
+      "reading": "호"
+    },
+    {
+      "char": "戸",
+      "via": "戶",
+      "viaField": "kZVariant",
+      "reading": "호"
+    },
+    {
+      "char": "扌",
+      "via": "手",
+      "viaField": "kSemanticVariant",
+      "reading": "수"
+    },
+    {
+      "char": "擿",
+      "via": "擲",
+      "viaField": "kSemanticVariant",
+      "reading": "척"
+    },
+    {
+      "char": "攜",
+      "via": "携",
+      "viaField": "kSemanticVariant",
+      "reading": "휴"
+    },
+    {
+      "char": "旉",
+      "via": "敷",
+      "viaField": "kSemanticVariant",
+      "reading": "부"
+    },
+    {
+      "char": "昪",
+      "via": "忭",
+      "viaField": "kSemanticVariant",
+      "reading": "변"
+    },
+    {
+      "char": "晅",
+      "via": "烜",
+      "viaField": "kSemanticVariant",
+      "reading": "훤"
+    },
+    {
+      "char": "朐",
+      "via": "鸜",
+      "viaField": "kSemanticVariant",
+      "reading": "구"
+    },
+    {
+      "char": "柜",
+      "via": "櫃",
+      "viaField": "kSemanticVariant",
+      "reading": "궤"
+    },
+    {
+      "char": "横",
+      "via": "橫",
+      "viaField": "kTraditionalVariant",
+      "reading": "횡"
+    },
+    {
+      "char": "欝",
+      "via": "鬱",
+      "viaField": "kSemanticVariant",
+      "reading": "울"
+    },
+    {
+      "char": "欵",
+      "via": "款",
+      "viaField": "kSemanticVariant",
+      "reading": "관"
+    },
+    {
+      "char": "歳",
+      "via": "歲",
+      "viaField": "kSemanticVariant",
+      "reading": "세"
+    },
+    {
+      "char": "歴",
+      "via": "曆",
+      "viaField": "kSemanticVariant",
+      "reading": "력"
+    },
+    {
+      "char": "毉",
+      "via": "醫",
+      "viaField": "kSpecializedSemanticVariant",
+      "reading": "의"
+    },
+    {
+      "char": "氵",
+      "via": "水",
+      "viaField": "kSemanticVariant",
+      "reading": "수"
+    },
+    {
+      "char": "沲",
+      "via": "沱",
+      "viaField": "kSemanticVariant",
+      "reading": "타"
+    },
+    {
+      "char": "泞",
+      "via": "濘",
+      "viaField": "kTraditionalVariant",
+      "reading": "녕"
+    },
+    {
+      "char": "泪",
+      "via": "淚",
+      "viaField": "kSemanticVariant",
+      "reading": "루"
+    },
+    {
+      "char": "洿",
+      "via": "汙",
+      "viaField": "kSemanticVariant",
+      "reading": "오"
+    },
+    {
+      "char": "淊",
+      "via": "淹",
+      "viaField": "kSpecializedSemanticVariant",
+      "reading": "엄"
+    },
+    {
+      "char": "渌",
+      "via": "淥",
+      "viaField": "kTraditionalVariant",
+      "reading": "록"
+    },
+    {
+      "char": "温",
+      "via": "溫",
+      "viaField": "kSemanticVariant",
+      "reading": "온"
+    },
+    {
+      "char": "渰",
+      "via": "淹",
+      "viaField": "kSemanticVariant",
+      "reading": "엄"
+    },
+    {
+      "char": "湌",
+      "via": "餐",
+      "viaField": "kSemanticVariant",
+      "reading": "찬"
+    },
+    {
+      "char": "湏",
+      "via": "須",
+      "viaField": "kSemanticVariant",
+      "reading": "수"
+    },
+    {
+      "char": "湼",
+      "via": "涅",
+      "viaField": "kSemanticVariant",
+      "reading": "열"
+    },
+    {
+      "char": "濵",
+      "via": "濱",
+      "viaField": "kSemanticVariant",
+      "reading": "빈"
+    },
+    {
+      "char": "煑",
+      "via": "煮",
+      "viaField": "kSemanticVariant",
+      "reading": "자"
+    },
+    {
+      "char": "犭",
+      "via": "犬",
+      "viaField": "kSemanticVariant",
+      "reading": "견"
+    },
+    {
+      "char": "猇",
+      "via": "虓",
+      "viaField": "kSemanticVariant",
+      "reading": "효"
+    },
+    {
+      "char": "猬",
+      "via": "蝟",
+      "viaField": "kSemanticVariant",
+      "reading": "위"
+    },
+    {
+      "char": "献",
+      "via": "獻",
+      "viaField": "kSemanticVariant",
+      "reading": "헌"
+    },
+    {
+      "char": "玅",
+      "via": "妙",
+      "viaField": "kSemanticVariant",
+      "reading": "묘"
+    },
+    {
+      "char": "珎",
+      "via": "珍",
+      "viaField": "kSemanticVariant",
+      "reading": "진"
+    },
+    {
+      "char": "瓶",
+      "via": "缾",
+      "viaField": "kSemanticVariant",
+      "reading": "병"
+    },
+    {
+      "char": "甖",
+      "via": "罌",
+      "viaField": "kSemanticVariant",
+      "reading": "앵"
+    },
+    {
+      "char": "甯",
+      "via": "寗",
+      "viaField": "kSemanticVariant",
+      "reading": "녕"
+    },
+    {
+      "char": "甾",
+      "via": "菑",
+      "viaField": "kSemanticVariant",
+      "reading": "치"
+    },
+    {
+      "char": "皝",
+      "via": "皓",
+      "viaField": "kSemanticVariant",
+      "reading": "호"
+    },
+    {
+      "char": "皥",
+      "via": "皞",
+      "viaField": "kSemanticVariant",
+      "reading": "호"
+    },
+    {
+      "char": "皦",
+      "via": "皎",
+      "viaField": "kSemanticVariant",
+      "reading": "교"
+    },
+    {
+      "char": "皷",
+      "via": "鼔",
+      "viaField": "kSemanticVariant",
+      "reading": "고"
+    },
+    {
+      "char": "盐",
+      "via": "鹽",
+      "viaField": "kTraditionalVariant",
+      "reading": "염"
+    },
+    {
+      "char": "禄",
+      "via": "祿",
+      "viaField": "kTraditionalVariant",
+      "reading": "록"
+    },
+    {
+      "char": "秃",
+      "via": "禿",
+      "viaField": "kSemanticVariant",
+      "reading": "독"
+    },
+    {
+      "char": "种",
+      "via": "種",
+      "viaField": "kTraditionalVariant",
+      "reading": "종"
+    },
+    {
+      "char": "竒",
+      "via": "奇",
+      "viaField": "kSemanticVariant",
+      "reading": "기"
+    },
+    {
+      "char": "筭",
+      "via": "算",
+      "viaField": "kSemanticVariant",
+      "reading": "산"
+    },
+    {
+      "char": "粵",
+      "via": "粤",
+      "viaField": "kSemanticVariant",
+      "reading": "월"
+    },
+    {
+      "char": "糓",
+      "via": "穀",
+      "viaField": "kSemanticVariant",
+      "reading": "곡"
+    },
+    {
+      "char": "緒",
+      "via": "緖",
+      "viaField": "kZVariant",
+      "reading": "서"
+    },
+    {
+      "char": "緤",
+      "via": "紲",
+      "viaField": "kSemanticVariant",
+      "reading": "설"
+    },
+    {
+      "char": "緫",
+      "via": "總",
+      "viaField": "kSemanticVariant",
+      "reading": "총"
+    },
+    {
+      "char": "縁",
+      "via": "緣",
+      "viaField": "kSemanticVariant",
+      "reading": "연"
+    },
+    {
+      "char": "縚",
+      "via": "絛",
+      "viaField": "kSemanticVariant",
+      "reading": "조"
+    },
+    {
+      "char": "缽",
+      "via": "鉢",
+      "viaField": "kSemanticVariant",
+      "reading": "발"
+    },
+    {
+      "char": "羙",
+      "via": "美",
+      "viaField": "kSemanticVariant",
+      "reading": "미"
+    },
+    {
+      "char": "羣",
+      "via": "群",
+      "viaField": "kSemanticVariant",
+      "reading": "군"
+    },
+    {
+      "char": "耻",
+      "via": "恥",
+      "viaField": "kSemanticVariant",
+      "reading": "치"
+    },
+    {
+      "char": "耼",
+      "via": "聃",
+      "viaField": "kSemanticVariant",
+      "reading": "담"
+    },
+    {
+      "char": "聦",
+      "via": "聰",
+      "viaField": "kSemanticVariant",
+      "reading": "총"
+    },
+    {
+      "char": "膫",
+      "via": "膋",
+      "viaField": "kSemanticVariant",
+      "reading": "료"
+    },
+    {
+      "char": "臯",
+      "via": "皋",
+      "viaField": "kSemanticVariant",
+      "reading": "고"
+    },
+    {
+      "char": "舉",
+      "via": "擧",
+      "viaField": "kSemanticVariant",
+      "reading": "거"
+    },
+    {
+      "char": "荅",
+      "via": "答",
+      "viaField": "kSemanticVariant",
+      "reading": "답"
+    },
+    {
+      "char": "荆",
+      "via": "荊",
+      "viaField": "kSemanticVariant",
+      "reading": "형"
+    },
+    {
+      "char": "莱",
+      "via": "萊",
+      "viaField": "kTraditionalVariant",
+      "reading": "래"
+    },
+    {
+      "char": "菸",
+      "via": "烟",
+      "viaField": "kSemanticVariant",
+      "reading": "연"
+    },
+    {
+      "char": "葢",
+      "via": "盖",
+      "viaField": "kSemanticVariant",
+      "reading": "개"
+    },
+    {
+      "char": "蒋",
+      "via": "蔣",
+      "viaField": "kTraditionalVariant",
+      "reading": "장"
+    },
+    {
+      "char": "蕚",
+      "via": "萼",
+      "viaField": "kSemanticVariant",
+      "reading": "악"
+    },
+    {
+      "char": "蕰",
+      "via": "薀",
+      "viaField": "kTraditionalVariant",
+      "reading": "온"
+    },
+    {
+      "char": "蘷",
+      "via": "虁",
+      "viaField": "kZVariant",
+      "reading": "기"
+    },
+    {
+      "char": "虚",
+      "via": "虛",
+      "viaField": "kTraditionalVariant",
+      "reading": "허"
+    },
+    {
+      "char": "蚡",
+      "via": "鼢",
+      "viaField": "kSemanticVariant",
+      "reading": "분"
+    },
+    {
+      "char": "衹",
+      "via": "只",
+      "viaField": "kSimplifiedVariant",
+      "reading": "지"
+    },
+    {
+      "char": "袮",
+      "via": "祢",
+      "viaField": "kSpecializedSemanticVariant",
+      "reading": "니"
+    },
+    {
+      "char": "襃",
+      "via": "褒",
+      "viaField": "kSemanticVariant",
+      "reading": "포"
+    },
+    {
+      "char": "覔",
+      "via": "覓",
+      "viaField": "kSemanticVariant",
+      "reading": "멱"
+    },
+    {
+      "char": "觧",
+      "via": "解",
+      "viaField": "kSemanticVariant",
+      "reading": "해"
+    },
+    {
+      "char": "訽",
+      "via": "詬",
+      "viaField": "kSemanticVariant",
+      "reading": "구"
+    },
+    {
+      "char": "詧",
+      "via": "察",
+      "viaField": "kSemanticVariant",
+      "reading": "찰"
+    },
+    {
+      "char": "豔",
+      "via": "艶",
+      "viaField": "kSemanticVariant",
+      "reading": "염"
+    },
+    {
+      "char": "賔",
+      "via": "賓",
+      "viaField": "kSemanticVariant",
+      "reading": "빈"
+    },
+    {
+      "char": "蹋",
+      "via": "踏",
+      "viaField": "kSemanticVariant",
+      "reading": "답"
+    },
+    {
+      "char": "躭",
+      "via": "眈",
+      "viaField": "kSemanticVariant",
+      "reading": "탐"
+    },
+    {
+      "char": "躶",
+      "via": "裸",
+      "viaField": "kSemanticVariant",
+      "reading": "라"
+    },
+    {
+      "char": "迁",
+      "via": "遷",
+      "viaField": "kSemanticVariant",
+      "reading": "천"
+    },
+    {
+      "char": "逷",
+      "via": "逖",
+      "viaField": "kSemanticVariant",
+      "reading": "적"
+    },
+    {
+      "char": "遟",
+      "via": "遲",
+      "viaField": "kSemanticVariant",
+      "reading": "지"
+    },
+    {
+      "char": "遥",
+      "via": "遙",
+      "viaField": "kTraditionalVariant",
+      "reading": "요"
+    },
+    {
+      "char": "郤",
+      "via": "郄",
+      "viaField": "kSemanticVariant",
+      "reading": "극"
+    },
+    {
+      "char": "郷",
+      "via": "鄕",
+      "viaField": "kZVariant",
+      "reading": "향"
+    },
+    {
+      "char": "鄔",
+      "via": "塢",
+      "viaField": "kSemanticVariant",
+      "reading": "오"
+    },
+    {
+      "char": "鎋",
+      "via": "轄",
+      "viaField": "kSemanticVariant",
+      "reading": "할"
+    },
+    {
+      "char": "鎮",
+      "via": "鎭",
+      "viaField": "kZVariant",
+      "reading": "진"
+    },
+    {
+      "char": "鏁",
+      "via": "鎖",
+      "viaField": "kSemanticVariant",
+      "reading": "쇄"
+    },
+    {
+      "char": "阬",
+      "via": "坑",
+      "viaField": "kSemanticVariant",
+      "reading": "갱"
+    },
+    {
+      "char": "陁",
+      "via": "陀",
+      "viaField": "kSemanticVariant",
+      "reading": "타"
+    },
+    {
+      "char": "隂",
+      "via": "陰",
+      "viaField": "kSemanticVariant",
+      "reading": "음"
+    },
+    {
+      "char": "隈",
+      "via": "渨",
+      "viaField": "kSemanticVariant",
+      "reading": "외"
+    },
+    {
+      "char": "隐",
+      "via": "隱",
+      "viaField": "kTraditionalVariant",
+      "reading": "은"
+    },
+    {
+      "char": "隲",
+      "via": "騭",
+      "viaField": "kSemanticVariant",
+      "reading": "즐"
+    },
+    {
+      "char": "韈",
+      "via": "襪",
+      "viaField": "kSemanticVariant",
+      "reading": "말"
+    },
+    {
+      "char": "頟",
+      "via": "額",
+      "viaField": "kSemanticVariant",
+      "reading": "액"
+    },
+    {
+      "char": "頴",
+      "via": "穎",
+      "viaField": "kSemanticVariant",
+      "reading": "영"
+    },
+    {
+      "char": "餙",
+      "via": "飾",
+      "viaField": "kSemanticVariant",
+      "reading": "식"
+    },
+    {
+      "char": "餻",
+      "via": "糕",
+      "viaField": "kSemanticVariant",
+      "reading": "고"
+    },
+    {
+      "char": "髙",
+      "via": "高",
+      "viaField": "kSemanticVariant",
+      "reading": "고"
+    },
+    {
+      "char": "鴞",
+      "via": "梟",
+      "viaField": "kSemanticVariant",
+      "reading": "효"
+    },
+    {
+      "char": "鵶",
+      "via": "鴉",
+      "viaField": "kSemanticVariant",
+      "reading": "아"
+    },
+    {
+      "char": "鸎",
+      "via": "鶯",
+      "viaField": "kSemanticVariant",
+      "reading": "앵"
+    },
+    {
+      "char": "黄",
+      "via": "黃",
+      "viaField": "kTraditionalVariant",
+      "reading": "황"
+    },
+    {
+      "char": "黒",
+      "via": "黑",
+      "viaField": "kZVariant",
+      "reading": "흑"
+    },
+    {
+      "char": "黙",
+      "via": "默",
+      "viaField": "kSemanticVariant",
+      "reading": "묵"
+    }
+  ]
+}

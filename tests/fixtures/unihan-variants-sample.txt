@@ -1,0 +1,8 @@
+# Unihan_Variants.txt 샘플(간자체/이체자 변이 분류 테스트용) — 실제 필드 표기·주석·다중 코드포인트 재현
+U+4E24	kSemanticVariant	U+4E21<kFenn
+U+4E24	kTraditionalVariant	U+4E24 U+5169
+U+5169	kSemanticVariant	U+4E21<kMatthews U+4E24<kLau,kMatthews
+U+4E49	kTraditionalVariant	U+4E49 U+7FA9
+U+7FA9	kSimplifiedVariant	U+4E49
+U+340A	kSpoofingVariant	U+340B
+U+3437	kTraditionalVariant	U+508C

@@ -82,3 +82,9 @@ export {
   type ReadingResult,
   type ImportStats,
 } from './reading/batch';
+export { loadVariantMap, type VariantTarget } from './reading/variant-source';
+export {
+  classifyByVariant,
+  type MigrateEntry,
+  type ClassifyResult,
+} from './reading/variant-classify';
