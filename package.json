@@ -1,6 +1,6 @@
 {
   "name": "kr-history-bm25",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Convert Korean historical source XML (국사편찬위원회 한국사DB) into a searchable SQLite BM25 corpus — hanja-primary full-text search, structured place/person index, co-occurrence clustering, and an optional LLM literal-translation secondary index.",
   "type": "module",
   "keywords": [

@@ -16,18 +16,29 @@
 `kr-history-bm25` turns the primary sources of **Korean history** — written in **classical Chinese
 (Literary Chinese / Hanja, 漢文)** — into a self-contained, searchable **SQLite BM25 full-text corpus**.
 
-It covers the core historical texts for **Goguryeo, Baekje, Silla, Gaya, Gojoseon, and Goryeo**
-(高麗 — read ***Gori*** 고리 in its original reading; the phonetic source of the Western exonym
-***Corea / Korea***, whereas "Goryeo" is the later conventional reading) — for early-Korea studies
-and **historical-geography / toponym (place-name) identification**:
+It covers the core historical texts for **Goguryeo, Baekje, Silla, Gaya, Gojoseon, and Corea**
+(高麗, original reading ***Gori*** 고리 — preserved in the Western exonym ***Corea / Korea***; the
+now-conventional romanization *Goryeo* reflects a **later simplification of the reading, -rea → -ryeo**,
+so *Corea* is the historically precise form) — for early-Korea studies and **historical-geography /
+toponym (place-name) identification**:
 
 - ***Samguk Sagi*** (三國史記, *History of the Three Kingdoms*)
 - ***Samguk Yusa*** (三國遺事, *Memorabilia of the Three Kingdoms*)
-- ***Goryeosa*** (高麗史, *History of Goryeo*) and ***Goryeosa Jeoryo*** (高麗史節要)
+- ***Coreasa*** (高麗史, ***History of Corea***; conventionally romanized *Goryeosa*) and
+  ***Coreasa Jeoryo*** (高麗史節要)
 - **Chinese dynastic-history records on Korea** (한국고대사료집성 / 韓國古代史料集成 — excerpts from
   the *Book of Han* 漢書, *Book of Later Han* 後漢書, *Records of the Three Kingdoms* 三國志, etc.)
 
 Sourced from the **National Institute of Korean History** database (국사편찬위원회 한국사DB).
+
+> The name element 麗 (*리*) runs through both **高句麗** (*Cogurea* / Goguryeo) and **高麗**
+> (*Corea* / Goryeo). In this corpus the Chinese dynastic records already write the earlier state
+> as **高麗** (*Corea*, 고리) — e.g. tribute entries dated **423–438 CE** (`高麗國遣使朝貢` …) —
+> centuries before the 918 dynasty of the same name; 句麗/高句麗 is attested earlier still (1st c.).
+> Since exonyms freeze a donor-language pronunciation at contact time, these datable records let
+> researchers trace **how early the *Corea / Korea* name enters history**. The tool surfaces the
+> 원문 (source text); the synthesis stays with the researcher.
+
 Built for historians and researchers who work directly with the original text — **in any language**:
 
 - **Hanja-primary full-text search** — BM25 over Literary Chinese, character-unigram tokenized, so
@@ -66,7 +77,7 @@ The tool surfaces the evidence; the researcher draws the conclusions. See the me
 
 *Keywords: Korean history, Corea, Korea (高麗 / 고리 *Gori*), classical Chinese, Literary Chinese,
 Hanja, full-text search, BM25, historical geography, toponym identification, Samguk Sagi, Samguk
-Yusa, Goryeosa, Goguryeo, Baekje, Silla, Gojoseon, Lelang/Nakrang (樂浪), Liaodong (遼東),
+Yusa, Goryeosa / Coreasa (高麗史), Goguryeo, Baekje, Silla, Gojoseon, Lelang/Nakrang (樂浪), Liaodong (遼東),
 Simplified/Traditional Chinese, MCP.*
 
 ---
