@@ -29,6 +29,14 @@ export {
   type FdbscanMembership,
 } from './search/fdbscan';
 export { placeClusters, type PlaceScope, type PlaceClusterOptions } from './search/place-clusters';
+export {
+  suggestPlaceClusterParams,
+  quantile,
+  estimateMinCooc,
+  type SuggestedParams,
+  type SuggestOptions,
+} from './search/suggest-params';
+export { fetchLocalGraph, jaccardSim, type LocalGraph, type UEntity } from './search/local-graph';
 export type { PlaceClusterResult, FuzzyPlaceCluster, FuzzyMember } from './types';
 export { lookupPlace, type LookupOptions } from './search/lookup-place';
 export { cluster, type ClusterOptions } from './search/cluster';

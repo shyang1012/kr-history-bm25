@@ -47,6 +47,11 @@ import { cluster, type ClusterOptions } from './search/cluster';
 import { withVariants, addVariantGroup, type VariantMemberSpec } from './search/variants';
 import { searchByReading, type ReadingSearchResult } from './search/search-by-reading';
 import { placeClusters, type PlaceClusterOptions } from './search/place-clusters';
+import {
+  suggestPlaceClusterParams,
+  type SuggestOptions,
+  type SuggestedParams,
+} from './search/suggest-params';
 import type {
   SearchHit,
   KoSearchHit,
@@ -119,6 +124,14 @@ export class HistoryDb {
   /** seed 유도 국소 퍼지 지명 군집(FDBSCAN) — 공기 기반 소속도(전역 밀도 아님) */
   placeClusters(seed: string, options?: PlaceClusterOptions): Promise<PlaceClusterResult> {
     return placeClusters(this.conn.client, seed, options);
+  }
+
+  /** seed별 FDBSCAN 파라미터를 분포 기반으로 추천한다(추천만, 군집 안 함). 없는 seed는 null */
+  suggestPlaceClusterParams(
+    seed: string,
+    options?: SuggestOptions,
+  ): Promise<SuggestedParams | null> {
+    return suggestPlaceClusterParams(this.conn.client, seed, options);
   }
 
   /** 구조화 색인 조회(표기 출현 위치) */
