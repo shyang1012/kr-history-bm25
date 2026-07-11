@@ -5,8 +5,9 @@
  *               원문·직역 각각 임베딩(문맥 청크=passage)한 뒤, 6개 arm(한자BM25/직역BM25/사전+BM25/원문벡터/
  *               직역벡터/RRF융합)을 정답셋(eval/relevance.json)에 대조해 Recall@K·MRR·nDCG를 산출한다.
  *               char-pair(eval/char-pairs.json) cosine로 정자↔간자·한자음·개념 의미공간도 측정한다.
- *               리랭커 arm(rr-han/rr-ko)은 --reranker일 때만(오프라인 bge-reranker-base, 외부 전송 없음). 결과는
- *               tmp/embedding-eval.json + 콘솔 요약. 리랭커 제외 전부 결정론.
+ *               리랭커 arm은 --reranker일 때만(오프라인 bge-reranker-base, 16개 배치, 외부 전송 없음): rr-han/rr-ko는
+ *               RRF→상위N 재채점(원문/직역), rr-union-han/ko는 전 retriever 합집합을 리랭커가 직접 정렬(RRF 대체).
+ *               결과는 tmp/embedding-eval.json + 콘솔 요약. 리랭커 제외 전부 결정론.
  *               실행: npm run build 후 `node scripts/embedding-eval.mjs [--reranker]`.
  * @Author: shyang
  * @LastModified: 2026-07-12
@@ -117,14 +118,20 @@ async function loadReranker() {
   const tok = await AutoTokenizer.from_pretrained(RERANK_MODEL);
   const mdl = await AutoModelForSequenceClassification.from_pretrained(RERANK_MODEL);
   // (query, doc) 쌍을 재채점 → 관련도 logit(높을수록 관련). 후보 id를 점수 내림차순으로 반환.
+  // CPU 메모리·시간 방어를 위해 16개씩 내부 배치 처리.
+  const RB = 16;
   return async (query, candidates /* [{id,text}] */) => {
-    const inputs = tok(Array(candidates.length).fill(query), {
-      text_pair: candidates.map((c) => c.text),
-      padding: true,
-      truncation: true,
-    });
-    const { logits } = await mdl(inputs);
-    const scores = logits.tolist().map((r) => r[0]);
+    const scores = [];
+    for (let i = 0; i < candidates.length; i += RB) {
+      const chunk = candidates.slice(i, i + RB);
+      const inputs = tok(Array(chunk.length).fill(query), {
+        text_pair: chunk.map((c) => c.text),
+        padding: true,
+        truncation: true,
+      });
+      const { logits } = await mdl(inputs);
+      for (const r of logits.tolist()) scores.push(r[0]);
+    }
     return candidates
       .map((c, i) => ({ id: c.id, s: scores[i] }))
       .sort((a, b) => (b.s !== a.s ? b.s - a.s : a.id - b.id))
@@ -261,10 +268,13 @@ async function main() {
   log('[Q-B~E] arm별 검색 평가…');
   const rel = JSON.parse(readFileSync('eval/relevance.json', 'utf8'));
   const reranker = USE_RERANKER ? await loadReranker() : null;
+  const totalQ = rel.topics.reduce((s, t) => s + t.queries.length, 0);
+  let qn = 0;
   const perQuery = [];
   for (const topic of rel.topics) {
     const positives = new Set(topic.positives);
     for (const { q, lang } of topic.queries) {
+      log(`  [eval ${++qn}/${totalQ}] ${topic.id} · "${q}" (${lang})`);
       const qVec = Float32Array.from((await e(['query: ' + q]))[0]);
       const ranks = {
         'bm25-han': await bm25Han(q),
@@ -282,7 +292,7 @@ async function main() {
         .map((f) => f.item)
         .slice(0, K_RETRIEVE);
       if (reranker) {
-        // 하이브리드 상위 후보를 재채점 — 원문(한자)/직역(한국어) 두 변형 비교
+        // (A) 표준 순서: RRF → 상위 N 리랭크(원문/직역 재채점)
         const top = ranks['hybrid'].slice(0, RERANK_TOPN);
         ranks['rr-han'] = await reranker(
           q,
@@ -291,6 +301,23 @@ async function main() {
         ranks['rr-ko'] = await reranker(
           q,
           top.map((id) => ({ id, text: koText.get(id) })),
+        );
+        // (B) 리랭커가 RRF를 대체: 전 retriever 후보 합집합을 리랭커가 직접 정렬(RRF 미사용)
+        const union = [
+          ...new Set([
+            ...ranks['dict-han'].slice(0, 25),
+            ...ranks['bm25-ko'].slice(0, 25),
+            ...ranks['vec-han'].slice(0, 25),
+            ...ranks['vec-ko'].slice(0, 25),
+          ]),
+        ];
+        ranks['rr-union-han'] = await reranker(
+          q,
+          union.map((id) => ({ id, text: hanText.get(id) })),
+        );
+        ranks['rr-union-ko'] = await reranker(
+          q,
+          union.map((id) => ({ id, text: koText.get(id) })),
         );
       }
       const row = { topic: topic.id, q, lang, positiveCount: positives.size, arms: {} };
@@ -307,7 +334,7 @@ async function main() {
   }
 
   // --- 집계(전체 + lang별) ---
-  const armSet = USE_RERANKER ? [...ARMS, 'rr-han', 'rr-ko'] : ARMS;
+  const armSet = USE_RERANKER ? [...ARMS, 'rr-han', 'rr-ko', 'rr-union-han', 'rr-union-ko'] : ARMS;
   function aggregate(rows) {
     const agg = {};
     for (const arm of armSet) {
