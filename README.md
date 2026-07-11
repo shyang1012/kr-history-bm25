@@ -105,16 +105,22 @@ const db = await openBundledDb(); // 첫 호출: data/history.sqlite로 압축 �
 // 1) 한자 원문 검색 (주 인덱스) — 지명·인명 등 고유명사에 사용
 const byHan = await db.searchHan('浿水', { limit: 10 });
 
-// 2) 직역 검색 (보조 인덱스) — 사건·현상·서술어에 사용
+// 2) 한자 원문 검색 — 간자체 질의도 자동 정규화(辽东 → 遼東, 중국어권 연구자)
+const bySimp = await db.searchHan('辽东', { limit: 10 });
+
+// 3) 독음 검색 — 한글 독음으로 한자 찾기(강감찬 → 姜邯贊, 대표음·관용 병기)
+const byReading = await db.searchByReading('강감찬', { limit: 10 });
+
+// 4) 직역 검색 (보조 인덱스) — 사건·현상·서술어에 사용
 const byKo = await db.searchKo('일식', { limit: 10 });
 
-// 3) 공기 군집 — 같은 기사에 함께 등장한 지명 (遼東·玄菟·王險 …)
+// 5) 공기 군집 — 같은 기사에 함께 등장한 지명 (遼東·玄菟·王險 …). 지명 간자체 병기
 const near = await db.cluster('浿水', { neighborType: '지명', limit: 20 });
 
-// 4) 구조화 출현 위치
+// 6) 구조화 출현 위치
 const occ = await db.lookupPlace('浿水', { type: '지명' });
 
-// 5) 이표기 확장 검색 (예: 졸본=홀본)
+// 7) 이표기 확장 검색 (예: 졸본=홀본)
 const variants = await db.withVariants('卒本');
 
 db.close();
@@ -127,6 +133,8 @@ CLI로도 동일하게 쓸 수 있다:
 
 ```bash
 npx krh search 浿水 --index han --limit 10
+npx krh search 辽东 --index han          # 간자체 질의 → 정자 遼東 자동 정규화
+npx krh search 강감찬 --index reading     # 한글 독음 → 姜邯贊(대표음·관용 병기)
 npx krh search 일식 --index ko
 npx krh cluster 浿水 --neighbor-type 지명 --scope paragraph
 npx krh place 浿水 --type 지명
@@ -221,11 +229,13 @@ SELECT p.id, p.text_han, bm25(passage_fts_han) AS score
 
 | 메서드 | 설명 | 반환 |
 |--------|------|------|
-| `searchHan(term, opts?)` | 한자 원문 BM25 검색 | `SearchHit[]` |
+| `searchHan(term, opts?)` | 한자 원문 BM25 검색(간자체 질의 자동 정규화) | `SearchHit[]` |
 | `searchKo(term, opts?)` | 직역(보조) BM25 검색 | `KoSearchHit[]` |
+| `searchByReading(query, opts?)` | 한글 독음으로 한자 검색 — 대표음·관용·간자체 병기 | `ReadingSearchResult` |
 | `lookupPlace(surface, opts?)` | 표기 출현 위치 구조화 조회 | `PlaceOccurrence[]` |
-| `cluster(surface, opts?)` | 공기 개체(군집). `scope`=article(기사)/paragraph(문단) | `ClusterNeighbor[]` |
+| `cluster(surface, opts?)` | 공기 개체(군집). `scope`=article(기사)/paragraph(문단). 지명 간자체 병기 | `ClusterNeighbor[]` |
 | `withVariants(surface, opts?)` | 이표기 확장 검색 | `VariantSearchResult` |
+| `traditionalize(term)` | 간자체 질의를 정자 후보로 확장(투명성 표시용) | `QueryExpansion` |
 | `addVariantGroup(members, note?, source?)` | 이표기 그룹 수동 등록 | `number` |
 | `close()` | 연결 종료 | `void` |
 
@@ -253,13 +263,13 @@ krh <command> [options]     # 전역 옵션: --db <path> (기본 KRH_DB 또는 h
 
 | 커맨드 | 설명 |
 |--------|------|
-| `search <term> --index han\|ko --limit <n>` | 한자(주)/직역(보조) BM25 검색 |
-| `cluster <surface> --type --neighbor-type --scope --limit` | 공기 군집(--scope article=기사/paragraph=문단) |
+| `search <term> --index han\|ko\|reading --limit <n>` | 한자(주)/직역(보조)/독음 검색. han은 간자체 질의 자동 정규화 |
+| `cluster <surface> --type --neighbor-type --scope --limit` | 공기 군집(--scope article=기사/paragraph=문단, 지명 간자체 병기) |
 | `place <surface> --type --limit` | 표기 출현 위치 조회 |
 | `ingest <dir> --code --name` | XML 사서 디렉터리를 주 코퍼스로 적재 |
 | `translate --provider --limit --corpus` | 미완 본문 증분 직역 |
 | `translate-export` / `translate-import <file>` | 구독 모델 배치 직역 내보내기/적재 |
-| `reading-build` / `reading-export` / `reading-import <file>` | 독음 사전 구축·검수 |
+| `reading-ingest-unihan <file>` / `reading-build` / `reading-export` / `reading-import <file>` | 독음 사전 적재·구축·검수 |
 
 `KRH_DB` 환경변수로 기본 DB 경로를 지정할 수 있다.
 
@@ -283,14 +293,15 @@ Claude 등에서 검색·군집·조회를 도구로 호출하고, 비정 방법
 전역 설치했다면 `krh-mcp`, 아니면 `npx -y -p kr-history-bm25 krh-mcp`. `KRH_DB` 환경변수를 주면
 동봉본 대신 지정 코퍼스를 연다.
 
-**도구 5종** (파사드에 1:1, JSON 반환):
+**도구 6종** (파사드에 1:1, JSON 반환):
 
 | 도구 | 용도 |
 |------|------|
-| `search_han` | 한자 원문 BM25 — 지명·인명 등 **고유명사** |
+| `search_han` | 한자 원문 BM25 — 지명·인명 등 **고유명사**. **간자체(简体) 질의 자동 정규화** |
 | `search_ko` | 직역 BM25 — 일식·전쟁 등 **사건·서술어**(번역 완료분) |
+| `search_by_reading` | 한글 독음으로 한자 표기 검색 — **대표음(사전 표제음)·관용 병기** |
 | `lookup_place` | 표기 출현 위치 구조화 조회 |
-| `cluster` | 같은 기사 공기(共起) 군집 |
+| `cluster` | 같은 기사 공기(共起) 군집 — **지명 간자체 병기** |
 | `with_variants` | 이표기 확장 검색(졸본=홀본) |
 
 **가이드 prompt** — `toponym-identification-guide`: 사서 원문·군집·지도 교차로 지명을 비정하는
@@ -298,14 +309,17 @@ Claude 등에서 검색·군집·조회를 도구로 호출하고, 비정 방법
 
 ---
 
-## 코퍼스 구성 · 현황 (v0.1.0)
+## 코퍼스 구성 · 현황
 
-- **한자 BM25 5종** — 삼국사기·삼국유사·고려사·고려사절요·한국고대사료집성.
+- **한자 BM25 5종** — 삼국사기·삼국유사·고려사·고려사절요·한국고대사료집성(개체 62,421).
 - **직역 완료(코어)** — 삼국사기·삼국유사 **6,838건** 직역 → 보조 인덱스 구축 완료.
-- **직역 예정** — 고려사·한국고대사료집성·고려사절요 약 **68,022건**(0.2.0+).
-- **독음 레이어** — 원음(原音) 1차 / 관용 주석. Unihan kHangul(글자 합성 95.5%) + 표준국어대사전
-  관용 + 두음법칙 + 학술 시드 + LLM 예외 검수.
-- 동봉 코퍼스 `data/history.sqlite.gz` (~38MB).
+- **직역 예정** — 고려사·한국고대사료집성·고려사절요 약 **68,022건**.
+- **독음 레이어(반영 완료)** — 대표음(사전 표제음) 1차 / 관용 주석. Unihan kHangul(글자 합성) +
+  표준국어대사전 관용 + 두음법칙 + 학술 시드 + LLM 예외 검수. 대표음 확정 **59,600/62,421(95.5%)**,
+  다음자 118 옥편 판정. 동봉본에 베이킹 완료 → `searchByReading`(한글 독음 → 한자).
+- **간자체 레이어(반영 완료)** — Unihan kSimplifiedVariant 6,511 매핑. 정자↔간자체 양방향:
+  결과에 간자체 병기(→지도) + 간자체 질의 자동 정규화(→중국어권 검색).
+- 동봉 코퍼스 `data/history.sqlite.gz` (~41MB).
 
 ---
 
@@ -342,7 +356,9 @@ Node ≥ 20. 드라이버는 `@libsql/client`(+drizzle-orm), FTS5 마이그레�
 
 ## 로드맵
 
-- ✅ **MCP 서버** (`krh-mcp`, 0.2.0 예정) — 도구 5종 + 비정 가이드로 LLM에 직접 노출. (위 절 참조)
+- ✅ **MCP 서버** (`krh-mcp`) — 도구 6종 + 비정 가이드로 LLM에 직접 노출. (위 절 참조)
+- ✅ **독음 검색·병기** — 한글 독음 → 한자(대표음/관용), 검색 결과 병기.
+- ✅ **간자체 양방향** — 결과 병기(→지도) + 질의 정규화(→중국어권 접근).
 - **하이브리드 검색** — 벡터 KNN(의미 발견층) + BM25 재랭킹, 그 위에 **DBSCAN 군집층**(밀도 기반).
   libsql 네이티브 벡터(동봉 파일 내 F32_BLOB) 활용.
 - **퍼지 군집(FDBSCAN)** — 경계·이표기의 군집 소속을 등급(가능성)으로. "확정 금지" 방법론과 정합.
