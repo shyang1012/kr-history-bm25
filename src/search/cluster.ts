@@ -1,13 +1,23 @@
 /**
  * @Project: kr-history-bm25
  * @File: cluster.ts
- * @Description: 지명 군집(co-occurrence) 분석. 대상 표기와 같은 기사(node)에 함께 등장하는 개체를 공기 빈도순으로 반환한다.
- *               context.md의 "주변 지명·하천·산 군집" 판단을 지지한다.
+ * @Description: 지명 군집(co-occurrence) 분석. 대상 표기와 선택한 scope(article=기사/paragraph=문단) 단위로
+ *               함께 등장하는 개체를 공기 빈도순으로 반환한다. context.md의 "주변 지명·하천·산 군집" 판단을 지지한다.
  * @Author: shyang
- * @LastModified: 2026-07-09
+ * @LastModified: 2026-07-11
  */
 import type { Client } from '@libsql/client';
 import type { ClusterNeighbor } from '../types';
+import { loadSimplifiedMap, toSimplified } from '../reading/simplified';
+
+/** 공기 범위: article=기사(node) 단위, paragraph=문단(passage) 단위 */
+export type ClusterScope = 'article' | 'paragraph';
+
+/** scope → entity_mention 공기 단위 컬럼(화이트리스트, injection 안전) */
+const SCOPE_UNIT_COLUMN: Record<ClusterScope, 'node_id' | 'passage_id'> = {
+  article: 'node_id',
+  paragraph: 'passage_id',
+};
 
 /** 군집 옵션 */
 export interface ClusterOptions {
@@ -17,6 +27,8 @@ export interface ClusterOptions {
   neighborType?: string;
   /** 최대 이웃 수 */
   limit?: number;
+  /** 공기 범위(기본 article=기사). paragraph=문단으로 좁힌다. */
+  scope?: ClusterScope;
 }
 
 /**
@@ -32,6 +44,8 @@ export async function cluster(
   options: ClusterOptions = {},
 ): Promise<ClusterNeighbor[]> {
   const limit = options.limit ?? 50;
+  // scope는 화이트리스트 상수 매핑으로만 SQL 식별자에 반영(사용자 문자열 직접 보간 금지 → injection 안전)
+  const unitCol = SCOPE_UNIT_COLUMN[options.scope ?? 'article'];
   const args: (string | number)[] = [surface];
   let targetTypeFilter = '';
   if (options.type) {
@@ -52,17 +66,17 @@ export async function cluster(
             FROM entity
            WHERE surface = ?${targetTypeFilter}
       )
-        , target_nodes AS (
-          SELECT DISTINCT node_id
+        , target_units AS (
+          SELECT DISTINCT ${unitCol} AS unit_id
             FROM entity_mention
            WHERE entity_id IN (SELECT id FROM target)
       )
-      SELECT e.type                     AS type
-           , e.surface                  AS surface
-           , COUNT(DISTINCT m.node_id)  AS count
+      SELECT e.type                        AS type
+           , e.surface                     AS surface
+           , COUNT(DISTINCT m.${unitCol})  AS count
         FROM entity_mention m
         JOIN entity e ON e.id = m.entity_id
-       WHERE m.node_id IN (SELECT node_id FROM target_nodes)
+       WHERE m.${unitCol} IN (SELECT unit_id FROM target_units)
          AND m.entity_id NOT IN (SELECT id FROM target)${neighborTypeFilter}
        GROUP BY e.id
        ORDER BY count DESC, e.surface
@@ -71,9 +85,16 @@ export async function cluster(
     args,
   });
 
-  return result.rows.map((row) => ({
-    type: String(row.type),
-    surface: String(row.surface),
-    count: Number(row.count),
-  }));
+  // 간자체 병기(정자 surface 불변, 다를 때만 simplified 추가 — 지명을 지도에서 대조하는 진입점)
+  const simpMap = await loadSimplifiedMap(client);
+  return result.rows.map((row) => {
+    const surface = String(row.surface);
+    const s = toSimplified(surface, simpMap);
+    return {
+      type: String(row.type),
+      surface,
+      count: Number(row.count),
+      ...(s.changed ? { simplified: s.simplified } : {}),
+    };
+  });
 }

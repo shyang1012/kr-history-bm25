@@ -8,6 +8,7 @@
 import type { Client } from '@libsql/client';
 import * as init from './migrations/0001-init';
 import * as reading from './migrations/0002-reading';
+import * as simplified from './migrations/0003-simplified';
 
 /** 마이그레이션 1건 */
 interface Migration {
@@ -19,6 +20,7 @@ interface Migration {
 const MIGRATIONS: Migration[] = [
   { version: init.VERSION, sql: init.SQL },
   { version: reading.VERSION, sql: reading.SQL },
+  { version: simplified.VERSION, sql: simplified.SQL },
 ];
 
 /**

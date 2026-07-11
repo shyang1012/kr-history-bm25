@@ -1,7 +1,7 @@
 /**
  * @Project: kr-history-bm25
  * @File: tools.ts
- * @Description: MCP 도구 5종 등록 — search_han/search_ko/lookup_place/cluster/with_variants.
+ * @Description: MCP 도구 6종 등록 — search_han/search_ko/lookup_place/cluster/with_variants/search_by_reading.
  *               HistoryDb 파사드에 1:1 매핑하는 얇은 어댑터. 결과는 JSON 텍스트로 반환한다.
  *               도구 설명에 사용 지침(고유명사→han / 사건·서술어→ko)을 인코딩해 LLM 선택을 돕는다.
  * @Author: shyang
@@ -10,6 +10,43 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { McpCorpus } from './create-server';
+import { readingDisplay, type ReadingSearchResult } from '../search/search-by-reading';
+
+/**
+ * reading 검색 결과를 LLM-facing 계약으로 변환한다. 각 매칭 개체의 대표음·관용을 의미 필드
+ * (displayRole·label·source)와 함께 노출해, 사전 채택 검색 기준값과 프로젝트 해석을 구분하게 한다.
+ */
+function readingResult(r: ReadingSearchResult): unknown {
+  return {
+    query: r.query,
+    matches: r.matches.map((m) => {
+      const readings: unknown[] = [];
+      if (m.original !== null) {
+        readings.push({
+          reading: m.original,
+          readingType: 'original',
+          ...readingDisplay('original'),
+          source: m.originalSource,
+        });
+      }
+      if (m.conventional !== null) {
+        readings.push({
+          reading: m.conventional,
+          readingType: 'conventional',
+          ...readingDisplay('conventional'),
+        });
+      }
+      return {
+        surface: m.surface,
+        type: m.type,
+        ...(m.simplified ? { simplified: m.simplified } : {}),
+        readings,
+      };
+    }),
+    surfaces: r.surfaces,
+    hits: r.hits,
+  };
+}
 
 /** 도구 결과를 JSON 텍스트 CallToolResult로 감싼다 */
 function jsonResult(data: unknown): {
@@ -43,6 +80,7 @@ export function registerTools(server: McpServer, corpus: McpCorpus): void {
       title: '한자 원문 BM25 검색',
       description:
         '한자 원문을 BM25로 검색한다. 지명·인명·관직·서명 등 고유명사 검색에 사용한다(한자가 신뢰 근거). ' +
+        '간자체(简体) 질의도 자동으로 정자(번체) 후보로 확장해 검색한다(중국어권 연구자 지원). ' +
         '사건·현상·서술어는 search_ko를 쓴다. score는 작을수록 관련이 높다.',
       inputSchema: {
         term: z.string().min(1).describe('검색어(한자)'),
@@ -89,17 +127,21 @@ export function registerTools(server: McpServer, corpus: McpCorpus): void {
     {
       title: '공기(共起) 군집',
       description:
-        '대상 표기와 같은 기사(node)에 함께 등장하는 개체를 공기 빈도순으로 반환한다. ' +
+        '대상 표기와 선택한 scope(article=기사/paragraph=문단) 단위로 함께 등장하는 개체를 공기 빈도순으로 반환한다. ' +
         '지명 비정은 단독 비교가 아니라 이 군집으로 판단한다.',
       inputSchema: {
         surface: z.string().min(1).describe('대상 표기(한자)'),
         type: z.string().optional().describe('대상 개체 유형 제한'),
         neighborType: z.string().optional().describe('이웃 개체 유형 제한(예: 지명)'),
+        scope: z
+          .enum(['article', 'paragraph'])
+          .optional()
+          .describe('공기 범위: article=기사(기본), paragraph=문단으로 좁힘'),
         limit: limitSchema,
       },
     },
-    async ({ surface, type, neighborType, limit }) =>
-      jsonResult(await corpus.cluster(surface, { type, neighborType, limit })),
+    async ({ surface, type, neighborType, scope, limit }) =>
+      jsonResult(await corpus.cluster(surface, { type, neighborType, scope, limit })),
   );
 
   server.registerTool(
@@ -116,5 +158,22 @@ export function registerTools(server: McpServer, corpus: McpCorpus): void {
     },
     async ({ surface, limit, corpusCode }) =>
       jsonResult(await corpus.withVariants(surface, { limit, corpusCode })),
+  );
+
+  server.registerTool(
+    'search_by_reading',
+    {
+      title: '독음(한글)으로 한자 원문 검색',
+      description:
+        '한글 독음으로 한자 표기를 찾아 원문을 검색한다(예: "강감찬"→姜邯贊). 채택 독음을 역매칭해 이표기까지 확장한다. ' +
+        '반환의 대표음(사전 표제음)·관용 독음은 근거 사전에서 채택한 검색 기준값이며 프로젝트의 역사 해석이 아니다.',
+      inputSchema: {
+        query: z.string().min(1).describe('독음(한글, 예: 강감찬)'),
+        limit: limitSchema,
+        corpusCode: corpusCodeSchema,
+      },
+    },
+    async ({ query, limit, corpusCode }) =>
+      jsonResult(readingResult(await corpus.searchByReading(query, { limit, corpusCode }))),
   );
 }

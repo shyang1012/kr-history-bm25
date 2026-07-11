@@ -5,10 +5,26 @@
  *               translation-store.adopt 패턴 답습(raw @libsql/client, client.batch, ON CONFLICT DO UPDATE).
  *               채택은 "같은 개체·타입 기존 adopted=0 해제 후 대상 adopted=1"로 partial unique 불변식을 지킨다.
  * @Author: shyang
- * @LastModified: 2026-07-10
+ * @LastModified: 2026-07-11
  */
 import type { Client } from '@libsql/client';
 import type { CharCandidate } from './synthesize';
+
+/** 독음 역매칭으로 찾은 개체 1건(대표음·관용 병기) */
+export interface ReadingEntity {
+  /** 개체 id */
+  entityId: number;
+  /** 표기(한자) */
+  surface: string;
+  /** 개체 유형 */
+  type: string;
+  /** 채택된 대표음(사전 표제음, reading_type=original) */
+  original: string | null;
+  /** 채택된 관용 독음(reading_type=conventional) */
+  conventional: string | null;
+  /** 대표음의 출처(synth|dict|llm|seed|rule) */
+  originalSource: string | null;
+}
 
 /** entity_reading 후보 입력 */
 export interface ReadingInput {
@@ -128,4 +144,54 @@ export async function adoptReading(client: Client, input: ReadingInput): Promise
     ],
     'write',
   );
+}
+
+/**
+ * 독음(한글, full surface reading)으로 채택된 개체를 역매칭한다.
+ * 대상 개체의 채택 대표음(original)·관용 독음(conventional) 중 하나라도 reading과 일치하면 포함하며,
+ * 매칭된 개체마다 두 레이어를 함께 반환한다(원문 검색 전 표기 확장의 재료).
+ * @param client - libsql 클라이언트
+ * @param reading - 독음(한글)
+ * @param limit - 최대 개체 수(기본 50)
+ * @returns 매칭 개체 목록(대표음·관용 병기)
+ */
+export async function lookupEntitiesByReading(
+  client: Client,
+  reading: string,
+  limit = 50,
+): Promise<ReadingEntity[]> {
+  const result = await client.execute({
+    sql: `SELECT e.id        AS entity_id
+               , e.surface   AS surface
+               , e.type      AS type
+               , ro.reading  AS original
+               , ro.source   AS original_source
+               , rc.reading  AS conventional
+            FROM entity e
+            JOIN entity_reading rm ON rm.entity_id = e.id
+                                   AND rm.adopted = 1
+                                   AND rm.reading = ?
+       LEFT JOIN entity_reading ro ON ro.entity_id = e.id
+                                   AND ro.adopted = 1
+                                   AND ro.reading_type = 'original'
+       LEFT JOIN entity_reading rc ON rc.entity_id = e.id
+                                   AND rc.adopted = 1
+                                   AND rc.reading_type = 'conventional'
+        GROUP BY e.id
+               , e.surface
+               , e.type
+               , ro.reading
+               , ro.source
+               , rc.reading
+           LIMIT ?`,
+    args: [reading, limit],
+  });
+  return result.rows.map((row) => ({
+    entityId: Number(row.entity_id),
+    surface: String(row.surface),
+    type: String(row.type),
+    original: row.original === null ? null : String(row.original),
+    conventional: row.conventional === null ? null : String(row.conventional),
+    originalSource: row.original_source === null ? null : String(row.original_source),
+  }));
 }

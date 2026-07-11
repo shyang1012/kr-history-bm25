@@ -4,17 +4,30 @@
  * @File: krh.ts
  * @Description: krh CLI 엔트리. ingest/translate/search/cluster/place 커맨드를 라이브러리 파사드에 배선한다.
  * @Author: shyang
- * @LastModified: 2026-07-09
+ * @LastModified: 2026-07-11
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { cac } from 'cac';
-import { openHistoryDb } from '../history-db';
+import { openHistoryDb, type HistoryDb } from '../history-db';
+import { openBundledDb } from '../bundled-db';
+import { resolveQueryDbSource } from './resolve-db';
 import { createProvider, type ProviderName } from '../translate/create-provider';
 import type { BatchTranslationResult } from '../translate/batch';
 
-/** 기본 DB 경로 */
+/** 쓰기 계열(ingest/translate/reading) 기본 DB 경로 */
 const DEFAULT_DB = process.env.KRH_DB ?? 'history.sqlite';
+
+/**
+ * 조회 명령용 DB를 연다. `--db`·`KRH_DB` 미지정 시 동봉 코퍼스를 기본으로 삼아
+ * "설치하자마자 검색"을 보장한다(krh-qrb).
+ * @param dbOpt - `--db` 옵션 값(미지정 시 undefined)
+ * @returns 검색 준비된 HistoryDb 인스턴스
+ */
+async function openForQuery(dbOpt?: string): Promise<HistoryDb> {
+  const source = resolveQueryDbSource(dbOpt, process.env.KRH_DB);
+  return source.kind === 'path' ? openHistoryDb(source.path) : openBundledDb();
+}
 
 /** 배치 내보내기 기본 출력 경로 */
 const DEFAULT_BATCH_OUT = 'tmp/translate-batch.json';
@@ -195,13 +208,29 @@ cli
 
 cli
   .command('search <term>', '한자(주) 또는 직역(보조) BM25 검색')
-  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
-  .option('--index <index>', 'han|ko', { default: 'han' })
+  .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
+  .option('--index <index>', 'han|ko|reading', { default: 'han' })
   .option('--limit <n>', '최대 결과 수', { default: '20' })
-  .action(async (term: string, opts: { db: string; index: string; limit: string }) => {
-    const db = await openHistoryDb(opts.db);
+  .action(async (term: string, opts: { db?: string; index: string; limit: string }) => {
+    const db = await openForQuery(opts.db);
     const limit = Number(opts.limit);
-    if (opts.index === 'ko') {
+    if (opts.index === 'reading') {
+      const result = await db.searchByReading(term, { limit });
+      for (const m of result.matches) {
+        const rep = m.original ?? m.surface;
+        const annot =
+          m.conventional && m.conventional !== m.original ? `〔관용 ${m.conventional}〕` : '';
+        const simp = m.simplified ? ` · 간체 ${m.simplified}` : '';
+        console.log(`  ${rep}(${m.surface})${annot}${simp}  [${m.type}]`);
+      }
+      if (result.surfaces.length > 0) {
+        console.log(`(표기: ${result.surfaces.join(' ')})`);
+      }
+      for (const h of result.hits) {
+        console.log(`[${h.corpusCode}] ${h.nodeId} ${h.score.toFixed(2)}  ${truncate(h.textHan)}`);
+      }
+      console.log(`(${result.hits.length}건)`);
+    } else if (opts.index === 'ko') {
       const hits = await db.searchKo(term, { limit });
       for (const h of hits) {
         console.log(
@@ -210,6 +239,12 @@ cli
       }
       console.log(`(${hits.length}건)`);
     } else {
+      // 간자체 질의면 정자 정규화 결과를 먼저 알린다(투명성). searchHan은 내부에서 자동 확장한다.
+      const expansion = await db.traditionalize(term);
+      if (expansion.changed) {
+        const trad = expansion.candidates.filter((c) => c !== term);
+        console.log(`(간자체 질의 정규화: ${term} → ${trad.join(' / ')})`);
+      }
       const hits = await db.searchHan(term, { limit });
       for (const h of hits) {
         console.log(`[${h.corpusCode}] ${h.nodeId} ${h.score.toFixed(2)}  ${truncate(h.textHan)}`);
@@ -220,25 +255,34 @@ cli
   });
 
 cli
-  .command('cluster <surface>', '같은 기사에 공기하는 지명·개체(군집)')
-  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
+  .command(
+    'cluster <surface>',
+    '공기하는 지명·개체(군집). scope로 범위 조절(article=기사/paragraph=문단)',
+  )
+  .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
   .option('--type <type>', '대상 개체 유형')
   .option('--neighbor-type <type>', '이웃 개체 유형(예: 지명)')
+  .option('--scope <scope>', '공기 범위: article(기본)|paragraph', { default: 'article' })
   .option('--limit <n>', '최대 이웃 수', { default: '50' })
   .action(
     async (
       surface: string,
-      opts: { db: string; type?: string; neighborType?: string; limit: string },
+      opts: { db?: string; type?: string; neighborType?: string; scope: string; limit: string },
     ) => {
-      const db = await openHistoryDb(opts.db);
+      if (opts.scope !== 'article' && opts.scope !== 'paragraph') {
+        throw new Error(`--scope는 article|paragraph만 지원합니다(입력: ${opts.scope})`);
+      }
+      const db = await openForQuery(opts.db);
       const neighbors = await db.cluster(surface, {
         type: opts.type,
         neighborType: opts.neighborType,
+        scope: opts.scope,
         limit: Number(opts.limit),
       });
       db.close();
       for (const n of neighbors) {
-        console.log(`${String(n.count).padStart(5)}  ${n.type}  ${n.surface}`);
+        const simp = n.simplified ? ` (간체 ${n.simplified})` : '';
+        console.log(`${String(n.count).padStart(5)}  ${n.type}  ${n.surface}${simp}`);
       }
       console.log(`(${neighbors.length}개 이웃)`);
     },
@@ -246,11 +290,11 @@ cli
 
 cli
   .command('place <surface>', '표기 출현 위치 구조화 조회')
-  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
+  .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
   .option('--type <type>', '개체 유형(지명/이름 등)')
   .option('--limit <n>', '최대 결과 수', { default: '100' })
-  .action(async (surface: string, opts: { db: string; type?: string; limit: string }) => {
-    const db = await openHistoryDb(opts.db);
+  .action(async (surface: string, opts: { db?: string; type?: string; limit: string }) => {
+    const db = await openForQuery(opts.db);
     const occ = await db.lookupPlace(surface, { type: opts.type, limit: Number(opts.limit) });
     db.close();
     for (const o of occ) {

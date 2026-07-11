@@ -15,6 +15,13 @@ export { hanToUnigram, buildPhraseQuery, isCjk } from './ingest/tokenizer';
 
 export { searchHan, type SearchHanOptions } from './search/search-han';
 export { searchKo, type SearchKoOptions } from './search/search-ko';
+export {
+  searchByReading,
+  readingDisplay,
+  type ReadingSearchResult,
+  type ReadingMatch,
+  type ReadingDisplay,
+} from './search/search-by-reading';
 export { lookupPlace, type LookupOptions } from './search/lookup-place';
 export { cluster, type ClusterOptions } from './search/cluster';
 export {
@@ -82,3 +89,19 @@ export {
   type ReadingResult,
   type ImportStats,
 } from './reading/batch';
+export { loadVariantMap, type VariantTarget } from './reading/variant-source';
+export {
+  ingestSimplified,
+  loadSimplifiedMap,
+  toSimplified,
+  loadTraditionalForChars,
+  expandSimplifiedToTraditional,
+  type SimplifiedResult,
+  type IngestSimplifiedResult,
+  type QueryExpansion,
+} from './reading/simplified';
+export {
+  classifyByVariant,
+  type MigrateEntry,
+  type ClassifyResult,
+} from './reading/variant-classify';
