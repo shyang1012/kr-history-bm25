@@ -169,6 +169,9 @@ describe('MCP tools', () => {
     const got = await client.getPrompt({ name: GUIDE_PROMPT_NAME });
     const msg = got.messages[0].content as { type: string; text: string };
     expect(msg.text).toContain('비정');
+    // 동명(同名) 소급 구분 방법론이 가이드에 포함되어야 한다(前朝鮮/後朝鮮·高麗 축약)
+    expect(msg.text).toContain('소급 구분');
+    expect(msg.text).toContain('前朝鮮');
     await client.close();
   });
 });
