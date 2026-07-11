@@ -89,17 +89,21 @@ export function registerTools(server: McpServer, corpus: McpCorpus): void {
     {
       title: '공기(共起) 군집',
       description:
-        '대상 표기와 같은 기사(node)에 함께 등장하는 개체를 공기 빈도순으로 반환한다. ' +
+        '대상 표기와 선택한 scope(article=기사/paragraph=문단) 단위로 함께 등장하는 개체를 공기 빈도순으로 반환한다. ' +
         '지명 비정은 단독 비교가 아니라 이 군집으로 판단한다.',
       inputSchema: {
         surface: z.string().min(1).describe('대상 표기(한자)'),
         type: z.string().optional().describe('대상 개체 유형 제한'),
         neighborType: z.string().optional().describe('이웃 개체 유형 제한(예: 지명)'),
+        scope: z
+          .enum(['article', 'paragraph'])
+          .optional()
+          .describe('공기 범위: article=기사(기본), paragraph=문단으로 좁힘'),
         limit: limitSchema,
       },
     },
-    async ({ surface, type, neighborType, limit }) =>
-      jsonResult(await corpus.cluster(surface, { type, neighborType, limit })),
+    async ({ surface, type, neighborType, scope, limit }) =>
+      jsonResult(await corpus.cluster(surface, { type, neighborType, scope, limit })),
   );
 
   server.registerTool(

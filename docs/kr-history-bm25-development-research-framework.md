@@ -108,7 +108,7 @@
 
 ## A-4. 🟡 부분 구현 (이름은 있으나 아직 단순한 것)
 
-- **`cluster`** 🟡 — 같은 **node(기사)** 안에 공동 출현한 개체를 공기 빈도(`COUNT(DISTINCT node_id)`)로 내림차순 반환한다. 퍼지 밀도·소속도·DBSCAN은 없다. 이것은 향후 퍼지 군집(Part C-2)의 **초기 프록시**다.
+- **`cluster`** 🟡 — 선택 `scope`(article=기사/paragraph=문단, 기본 article) 단위로 공동 출현한 개체를 공기 빈도로 내림차순 반환한다(`krh-cyi`). 퍼지 밀도·소속도·DBSCAN은 없다. 이것은 향후 퍼지 군집(Part C-2)의 **초기 프록시**다.
 - **이표기(`variant_group`/`with_variants`)** 🟡 — 표기들을 단일 FTS `OR` 질의로 병합해 함께 검색한다. 관계유형 구분(번체/간체·이체자·명시 이명·추정 이명)은 없다(Part C-4).
 
 ## A-5. 🔴 개념명 ↔ 실제 심볼 매핑
@@ -191,10 +191,10 @@ F군: 고려 서경 대동강·패강·왕성강
 - **방향**: 하나의 지명·기록이 여러 문맥 군집에 중첩됨(fuzzy border 소속도)을 보존. 예) `浿水` → {평양성 0.82, 왕검성 0.71, 백제전쟁 0.64, 서경수계 0.58}. 동명이의·시대별 용례 분리(隴西 사례). 밀도 = 공기 + 벡터의미 + 좌표 하이브리드에 지명 위계(河/江/水/川) 가중.
 - **경계**: v0.1.0 밖. 백엔드 후보생성층. (bd 이슈 미등록 — 메모리 `fuzzy-dbscan`·`dbscan-clustering` 참조.)
 
-## ⬜ C-3. cluster scope 3분리 · `krh-cyi` (신규)
+## 🟡 C-3. cluster scope 분리 · `krh-cyi`(완료, paragraph/article) · `krh-f2o`(로드맵, sentence)
 
-- **현행 부재**: `cluster`는 node(기사) 단위 **고정**. B-1처럼 넓은 지리지 항목이 지명을 통째로 묶는다.
-- **방향**: `ClusterOptions`에 `scope`(sentence/paragraph/article) 추가로 공기 범위 조절. 모든 결과에 원문 ID·근거 문장 유지. `dual-index`(BM25 단위=passage)와 정합.
+- **✅ 완료(paragraph/article)**: `ClusterOptions.scope`(`article`=기사/`paragraph`=문단) — 넓은 지리지 항목이 지명을 통째로 묶던 문제(B-1)를 문단 단위로 좁혀 완화. 라이브러리·CLI(`--scope`)·MCP 노출, 기본 `article` 하위호환. `dual-index`(BM25 단위=passage)와 정합. SQL은 `entity_mention`의 `node_id`/`passage_id` 화이트리스트 스위칭.
+- **⬜ 로드맵(sentence)**: `char_offset` 기반 문장 분해(구두점 규칙) 서브시스템 필요(문장 테이블 부재) → `krh-f2o`.
 
 ## ⬜ C-4. 이표기 관계유형 구분 · `krh-2ol` (신규)
 

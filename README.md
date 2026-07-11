@@ -96,7 +96,7 @@ CLI로도 동일하게 쓸 수 있다:
 ```bash
 npx krh search 浿水 --index han --limit 10
 npx krh search 일식 --index ko
-npx krh cluster 浿水 --neighbor-type 지명
+npx krh cluster 浿水 --neighbor-type 지명 --scope paragraph
 npx krh place 浿水 --type 지명
 ```
 
@@ -192,7 +192,7 @@ SELECT p.id, p.text_han, bm25(passage_fts_han) AS score
 | `searchHan(term, opts?)` | 한자 원문 BM25 검색 | `SearchHit[]` |
 | `searchKo(term, opts?)` | 직역(보조) BM25 검색 | `KoSearchHit[]` |
 | `lookupPlace(surface, opts?)` | 표기 출현 위치 구조화 조회 | `PlaceOccurrence[]` |
-| `cluster(surface, opts?)` | 같은 기사 공기 개체(군집) | `ClusterNeighbor[]` |
+| `cluster(surface, opts?)` | 공기 개체(군집). `scope`=article(기사)/paragraph(문단) | `ClusterNeighbor[]` |
 | `withVariants(surface, opts?)` | 이표기 확장 검색 | `VariantSearchResult` |
 | `addVariantGroup(members, note?, source?)` | 이표기 그룹 수동 등록 | `number` |
 | `close()` | 연결 종료 | `void` |
@@ -222,7 +222,7 @@ krh <command> [options]     # 전역 옵션: --db <path> (기본 KRH_DB 또는 h
 | 커맨드 | 설명 |
 |--------|------|
 | `search <term> --index han\|ko --limit <n>` | 한자(주)/직역(보조) BM25 검색 |
-| `cluster <surface> --type --neighbor-type --limit` | 공기 군집(같은 기사 이웃 개체) |
+| `cluster <surface> --type --neighbor-type --scope --limit` | 공기 군집(--scope article=기사/paragraph=문단) |
 | `place <surface> --type --limit` | 표기 출현 위치 조회 |
 | `ingest <dir> --code --name` | XML 사서 디렉터리를 주 코퍼스로 적재 |
 | `translate --provider --limit --corpus` | 미완 본문 증분 직역 |

@@ -233,20 +233,25 @@ cli
   });
 
 cli
-  .command('cluster <surface>', '같은 기사에 공기하는 지명·개체(군집)')
+  .command('cluster <surface>', '공기하는 지명·개체(군집). scope로 범위 조절(article=기사/paragraph=문단)')
   .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
   .option('--type <type>', '대상 개체 유형')
   .option('--neighbor-type <type>', '이웃 개체 유형(예: 지명)')
+  .option('--scope <scope>', '공기 범위: article(기본)|paragraph', { default: 'article' })
   .option('--limit <n>', '최대 이웃 수', { default: '50' })
   .action(
     async (
       surface: string,
-      opts: { db?: string; type?: string; neighborType?: string; limit: string },
+      opts: { db?: string; type?: string; neighborType?: string; scope: string; limit: string },
     ) => {
+      if (opts.scope !== 'article' && opts.scope !== 'paragraph') {
+        throw new Error(`--scope는 article|paragraph만 지원합니다(입력: ${opts.scope})`);
+      }
       const db = await openForQuery(opts.db);
       const neighbors = await db.cluster(surface, {
         type: opts.type,
         neighborType: opts.neighborType,
+        scope: opts.scope,
         limit: Number(opts.limit),
       });
       db.close();

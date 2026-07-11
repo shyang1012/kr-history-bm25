@@ -106,7 +106,7 @@ export interface ClusterNeighbor {
   type: string;
   /** 표기(한자) */
   surface: string;
-  /** 공기(共起) 빈도 */
+  /** 선택 scope 단위 공기(共起) 빈도(article=공기 기사 수 / paragraph=공기 문단 수) */
   count: number;
 }
 

@@ -59,6 +59,21 @@ describe('검색 프리미티브', () => {
     expect(neighbors.map((n) => n.surface)).toContain('漢城');
   });
 
+  it('cluster — scope=article(기본)은 같은 기사의 다른 문단 개체까지 공기로 묶는다', async () => {
+    // tt_001: 金城(para2)과 赫居世(para1)는 같은 node, 다른 passage
+    const neighbors = await cluster(conn.client, '金城', { scope: 'article' });
+    const surfaces = neighbors.map((n) => n.surface);
+    expect(surfaces).toContain('赫居世'); // 같은 기사(node) → 공기
+    expect(surfaces).toContain('漢城'); // tt_002 같은 문단
+  });
+
+  it('cluster — scope=paragraph는 같은 문단으로 공기 범위를 좁힌다', async () => {
+    const neighbors = await cluster(conn.client, '金城', { scope: 'paragraph' });
+    const surfaces = neighbors.map((n) => n.surface);
+    expect(surfaces).not.toContain('赫居世'); // 다른 문단 → 제외(좁아짐)
+    expect(surfaces).toContain('漢城'); // tt_002 같은 문단 → 유지
+  });
+
   it('withVariants — 이표기 그룹을 OR로 병합 검색', async () => {
     await addVariantGroup(
       conn.client,
