@@ -23,7 +23,8 @@ and **historical-geography / toponym (place-name) identification**:
 
 - ***Samguk Sagi*** (三國史記, *History of the Three Kingdoms*)
 - ***Samguk Yusa*** (三國遺事, *Memorabilia of the Three Kingdoms*)
-- ***Goryeosa*** (高麗史, *History of Goryeo*) and ***Goryeosa Jeoryo*** (高麗史節要)
+- ***Goryeosa*** (高麗史, *History of Goryeo*; the original reading gives ***Coreasa*** 고리사,
+  cf. *Corea/Korea*) and ***Goryeosa Jeoryo*** (高麗史節要)
 - **Chinese dynastic-history records on Korea** (한국고대사료집성 / 韓國古代史料集成 — excerpts from
   the *Book of Han* 漢書, *Book of Later Han* 後漢書, *Records of the Three Kingdoms* 三國志, etc.)
 
@@ -66,7 +67,7 @@ The tool surfaces the evidence; the researcher draws the conclusions. See the me
 
 *Keywords: Korean history, Corea, Korea (高麗 / 고리 *Gori*), classical Chinese, Literary Chinese,
 Hanja, full-text search, BM25, historical geography, toponym identification, Samguk Sagi, Samguk
-Yusa, Goryeosa, Goguryeo, Baekje, Silla, Gojoseon, Lelang/Nakrang (樂浪), Liaodong (遼東),
+Yusa, Goryeosa / Coreasa (高麗史), Goguryeo, Baekje, Silla, Gojoseon, Lelang/Nakrang (樂浪), Liaodong (遼東),
 Simplified/Traditional Chinese, MCP.*
 
 ---
