@@ -16,15 +16,16 @@
 `kr-history-bm25` turns the primary sources of **Korean history** — written in **classical Chinese
 (Literary Chinese / Hanja, 漢文)** — into a self-contained, searchable **SQLite BM25 full-text corpus**.
 
-It covers the core historical texts for **Goguryeo, Baekje, Silla, Gaya, Gojoseon, and Goryeo**
-(高麗 — read ***Gori*** 고리 in its original reading; the phonetic source of the Western exonym
-***Corea / Korea***, whereas "Goryeo" is the later conventional reading) — for early-Korea studies
-and **historical-geography / toponym (place-name) identification**:
+It covers the core historical texts for **Goguryeo, Baekje, Silla, Gaya, Gojoseon, and Corea**
+(高麗, original reading ***Gori*** 고리 — preserved in the Western exonym ***Corea / Korea***; the
+now-conventional romanization *Goryeo* reflects a **later simplification of the reading, -rea → -ryeo**,
+so *Corea* is the historically precise form) — for early-Korea studies and **historical-geography /
+toponym (place-name) identification**:
 
 - ***Samguk Sagi*** (三國史記, *History of the Three Kingdoms*)
 - ***Samguk Yusa*** (三國遺事, *Memorabilia of the Three Kingdoms*)
-- ***Goryeosa*** (高麗史, *History of Goryeo*; the original reading gives ***Coreasa*** 고리사,
-  cf. *Corea/Korea*) and ***Goryeosa Jeoryo*** (高麗史節要)
+- ***Coreasa*** (高麗史, ***History of Corea***; conventionally romanized *Goryeosa*) and
+  ***Coreasa Jeoryo*** (高麗史節要)
 - **Chinese dynastic-history records on Korea** (한국고대사료집성 / 韓國古代史料集成 — excerpts from
   the *Book of Han* 漢書, *Book of Later Han* 後漢書, *Records of the Three Kingdoms* 三國志, etc.)
 
