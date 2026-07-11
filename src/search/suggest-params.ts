@@ -83,7 +83,7 @@ export async function suggestPlaceClusterParams(
 ): Promise<SuggestedParams | null> {
   const scope: PlaceScope = options.scope ?? 'article';
   const limit = options.limit ?? 200;
-  const simQ = options.simQuantile ?? 0.6;
+  const simQ = options.simQuantile ?? 0.8; // 제안 70~85%: 약/강 관계 경계
   const muQ = options.muQuantile ?? 0.5;
 
   // 1) 광역 그래프(minCooc=1)로 seed 빈도 → minCooc 추정

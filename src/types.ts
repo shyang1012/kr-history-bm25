@@ -120,6 +120,20 @@ export interface FuzzyPlaceCluster {
   members: FuzzyMember[];
 }
 
+/** 파라미터 선정 근거(auto 모드) */
+export interface PlaceClusterSelection {
+  /** 'fixed'(기본값·명시값) | 'auto'(seed별 자동) */
+  parameterMode: 'fixed' | 'auto';
+  /** 산정 방법 식별자(auto) */
+  method?: string;
+  /** 평가한 후보 조합 수(auto) */
+  candidateCount?: number;
+  /** 선정 조합의 품질 점수(auto) */
+  score?: number;
+  /** suggest 초기 추천값(auto) */
+  suggested?: { minCooc: number; simMin: number; muMin: number };
+}
+
 /** seed 유도 국소 퍼지 군집 결과(전역 밀도 아님) */
 export interface PlaceClusterResult {
   /** 기준 표기(seed) */
@@ -134,6 +148,8 @@ export interface PlaceClusterResult {
   clusters: FuzzyPlaceCluster[];
   /** 노이즈 지명(정렬) */
   noise: string[];
+  /** 파라미터 선정 근거(재현성·투명성) */
+  selection?: PlaceClusterSelection;
 }
 
 /** 군집(co-occurrence) 결과 1건 */

@@ -77,6 +77,30 @@ describe.skipIf(!existsSync(gzPath))('placeClusters — e2e(동봉, 구조 불�
     db.close();
   });
 
+  it('parameterMode auto — 고정 파라미터가 붕괴하는 희소 seed를 회복(selection 반환)', async () => {
+    const db = await openBundledDb();
+    const fixed = await db.placeClusters('慈悲嶺', { scope: 'article', parameterMode: 'fixed' });
+    const auto = await db.placeClusters('慈悲嶺', { scope: 'article', parameterMode: 'auto' });
+    // 희소 seed는 fixed에서 0군집(붕괴) 가능 → auto가 회복
+    expect(fixed.clusters.length).toBe(0);
+    expect(auto.clusters.length).toBeGreaterThan(0);
+    // selection 근거(재현성·투명성)
+    expect(auto.selection?.parameterMode).toBe('auto');
+    expect(auto.selection?.suggested).toBeDefined();
+    expect(auto.selection?.candidateCount).toBe(16);
+    db.close();
+  });
+
+  it('auto는 결정론적(동일 입력 동일 결과)', async () => {
+    const db = await openBundledDb();
+    const a1 = await db.placeClusters('鐵嶺', { scope: 'article', parameterMode: 'auto' });
+    const a2 = await db.placeClusters('鐵嶺', { scope: 'article', parameterMode: 'auto' });
+    expect(a1.params).toEqual(a2.params);
+    expect(a1.clusters.length).toBe(a2.clusters.length);
+    expect(a1.noise).toEqual(a2.noise);
+    db.close();
+  });
+
   it('경계 지명의 소속도 합은 1(분할 소속)', async () => {
     const db = await openBundledDb();
     const r = await db.placeClusters('樂浪', {
