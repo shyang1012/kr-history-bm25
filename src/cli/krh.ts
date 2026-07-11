@@ -4,17 +4,30 @@
  * @File: krh.ts
  * @Description: krh CLI 엔트리. ingest/translate/search/cluster/place 커맨드를 라이브러리 파사드에 배선한다.
  * @Author: shyang
- * @LastModified: 2026-07-09
+ * @LastModified: 2026-07-11
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { cac } from 'cac';
-import { openHistoryDb } from '../history-db';
+import { openHistoryDb, type HistoryDb } from '../history-db';
+import { openBundledDb } from '../bundled-db';
+import { resolveQueryDbSource } from './resolve-db';
 import { createProvider, type ProviderName } from '../translate/create-provider';
 import type { BatchTranslationResult } from '../translate/batch';
 
-/** 기본 DB 경로 */
+/** 쓰기 계열(ingest/translate/reading) 기본 DB 경로 */
 const DEFAULT_DB = process.env.KRH_DB ?? 'history.sqlite';
+
+/**
+ * 조회 명령용 DB를 연다. `--db`·`KRH_DB` 미지정 시 동봉 코퍼스를 기본으로 삼아
+ * "설치하자마자 검색"을 보장한다(krh-qrb).
+ * @param dbOpt - `--db` 옵션 값(미지정 시 undefined)
+ * @returns 검색 준비된 HistoryDb 인스턴스
+ */
+async function openForQuery(dbOpt?: string): Promise<HistoryDb> {
+  const source = resolveQueryDbSource(dbOpt, process.env.KRH_DB);
+  return source.kind === 'path' ? openHistoryDb(source.path) : openBundledDb();
+}
 
 /** 배치 내보내기 기본 출력 경로 */
 const DEFAULT_BATCH_OUT = 'tmp/translate-batch.json';
@@ -195,11 +208,11 @@ cli
 
 cli
   .command('search <term>', '한자(주) 또는 직역(보조) BM25 검색')
-  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
+  .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
   .option('--index <index>', 'han|ko', { default: 'han' })
   .option('--limit <n>', '최대 결과 수', { default: '20' })
-  .action(async (term: string, opts: { db: string; index: string; limit: string }) => {
-    const db = await openHistoryDb(opts.db);
+  .action(async (term: string, opts: { db?: string; index: string; limit: string }) => {
+    const db = await openForQuery(opts.db);
     const limit = Number(opts.limit);
     if (opts.index === 'ko') {
       const hits = await db.searchKo(term, { limit });
@@ -221,16 +234,16 @@ cli
 
 cli
   .command('cluster <surface>', '같은 기사에 공기하는 지명·개체(군집)')
-  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
+  .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
   .option('--type <type>', '대상 개체 유형')
   .option('--neighbor-type <type>', '이웃 개체 유형(예: 지명)')
   .option('--limit <n>', '최대 이웃 수', { default: '50' })
   .action(
     async (
       surface: string,
-      opts: { db: string; type?: string; neighborType?: string; limit: string },
+      opts: { db?: string; type?: string; neighborType?: string; limit: string },
     ) => {
-      const db = await openHistoryDb(opts.db);
+      const db = await openForQuery(opts.db);
       const neighbors = await db.cluster(surface, {
         type: opts.type,
         neighborType: opts.neighborType,
@@ -246,11 +259,11 @@ cli
 
 cli
   .command('place <surface>', '표기 출현 위치 구조화 조회')
-  .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
+  .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
   .option('--type <type>', '개체 유형(지명/이름 등)')
   .option('--limit <n>', '최대 결과 수', { default: '100' })
-  .action(async (surface: string, opts: { db: string; type?: string; limit: string }) => {
-    const db = await openHistoryDb(opts.db);
+  .action(async (surface: string, opts: { db?: string; type?: string; limit: string }) => {
+    const db = await openForQuery(opts.db);
     const occ = await db.lookupPlace(surface, { type: opts.type, limit: Number(opts.limit) });
     db.close();
     for (const o of occ) {
