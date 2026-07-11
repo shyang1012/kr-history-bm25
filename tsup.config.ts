@@ -5,6 +5,8 @@ export default defineConfig({
     index: 'src/index.ts',
     'cli/krh': 'src/cli/krh.ts',
     'mcp/server': 'src/mcp/server.ts',
+    // dev 전용 — krh-cvh Phase 0 평가 하니스(scripts/embedding-eval.mjs)가 import. 공개 '.' export 아님.
+    'eval/index': 'src/eval/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: { entry: { index: 'src/index.ts' } },
