@@ -30,6 +30,15 @@ toponym (place-name) identification**:
   the *Book of Han* 漢書, *Book of Later Han* 後漢書, *Records of the Three Kingdoms* 三國志, etc.)
 
 Sourced from the **National Institute of Korean History** database (국사편찬위원회 한국사DB).
+
+> The name element 麗 (*리*) runs through both **高句麗** (*Cogurea* / Goguryeo) and **高麗**
+> (*Corea* / Goryeo). In this corpus the Chinese dynastic records already write the earlier state
+> as **高麗** (*Corea*, 고리) — e.g. tribute entries dated **423–438 CE** (`高麗國遣使朝貢` …) —
+> centuries before the 918 dynasty of the same name; 句麗/高句麗 is attested earlier still (1st c.).
+> Since exonyms freeze a donor-language pronunciation at contact time, these datable records let
+> researchers trace **how early the *Corea / Korea* name enters history**. The tool surfaces the
+> 원문 (source text); the synthesis stays with the researcher.
+
 Built for historians and researchers who work directly with the original text — **in any language**:
 
 - **Hanja-primary full-text search** — BM25 over Literary Chinese, character-unigram tokenized, so
