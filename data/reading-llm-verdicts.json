@@ -1,0 +1,710 @@
+[
+  {
+    "char": "䢖",
+    "reading": "건",
+    "status": "verified",
+    "note": "建(건) 계열 성부"
+  },
+  {
+    "char": "不",
+    "reading": "불",
+    "status": "verified",
+    "note": "본음 불; 부는 ㄷ/ㅈ 앞 음편"
+  },
+  {
+    "char": "串",
+    "reading": "관",
+    "status": "verified",
+    "note": "본음 관(꿰다); 곶=한국 지명음(長串)"
+  },
+  {
+    "char": "丹",
+    "reading": "단",
+    "status": "verified",
+    "note": "본음 단; 란=牡丹(모란) 음편"
+  },
+  {
+    "char": "亘",
+    "reading": "긍",
+    "status": "verified",
+    "note": "뻗칠 긍; 선=이체 桓 혼동"
+  },
+  {
+    "char": "什",
+    "reading": "십",
+    "status": "verified",
+    "note": "열사람 십; 집=什物"
+  },
+  {
+    "char": "便",
+    "reading": "편",
+    "status": "verified",
+    "note": "편할 편; 변=便所"
+  },
+  {
+    "char": "兒",
+    "reading": "아",
+    "status": "verified",
+    "note": "아이 아; 예=인명. 간체 儿(인) 상속 금지"
+  },
+  {
+    "char": "切",
+    "reading": "절",
+    "status": "verified",
+    "note": "끊을 절; 체=一切"
+  },
+  {
+    "char": "刺",
+    "reading": "자",
+    "status": "verified",
+    "note": "찌를 자; 척=刺殺"
+  },
+  {
+    "char": "劭",
+    "reading": "소",
+    "status": "verified",
+    "note": "힘쓸 소"
+  },
+  {
+    "char": "北",
+    "reading": "북",
+    "status": "verified",
+    "note": "본음 북; 배=敗北"
+  },
+  {
+    "char": "參",
+    "reading": "참",
+    "status": "verified",
+    "note": "간여할 참; 삼=별/蔘"
+  },
+  {
+    "char": "句",
+    "reading": "구",
+    "status": "verified",
+    "note": "글귀 구; 귀=句踐"
+  },
+  {
+    "char": "咽",
+    "reading": "인",
+    "status": "verified",
+    "note": "목구멍 인; 열=목멜, 연=삼킬"
+  },
+  {
+    "char": "員",
+    "reading": "원",
+    "status": "verified",
+    "note": "인원 원; 운=員 지명음"
+  },
+  {
+    "char": "嘏",
+    "reading": "하",
+    "status": "verified",
+    "note": "클/복 하; 가 이독"
+  },
+  {
+    "char": "圜",
+    "reading": "환",
+    "status": "verified",
+    "note": "둥글 환; 원=圜丘"
+  },
+  {
+    "char": "圻",
+    "reading": "기",
+    "status": "verified",
+    "note": "경기 기; 은=圻堮"
+  },
+  {
+    "char": "均",
+    "reading": "균",
+    "status": "verified",
+    "note": "고를 균"
+  },
+  {
+    "char": "塞",
+    "reading": "색",
+    "status": "verified",
+    "note": "막을 색; 새=변방/요새"
+  },
+  {
+    "char": "塡",
+    "reading": "전",
+    "status": "verified",
+    "note": "메울 전; 진 이독"
+  },
+  {
+    "char": "奈",
+    "reading": "내",
+    "status": "verified",
+    "note": "어찌 내; 나=奈落"
+  },
+  {
+    "char": "契",
+    "reading": "계",
+    "status": "verified",
+    "note": "맺을 계; 글=契丹, 설=殷 시조"
+  },
+  {
+    "char": "宅",
+    "reading": "택",
+    "status": "verified",
+    "note": "집 택; 댁=존칭"
+  },
+  {
+    "char": "宿",
+    "reading": "숙",
+    "status": "verified",
+    "note": "잘 숙; 수=星宿(별자리)"
+  },
+  {
+    "char": "實",
+    "reading": "실",
+    "status": "verified",
+    "note": "열매 실; 지 이독"
+  },
+  {
+    "char": "寧",
+    "reading": "녕",
+    "status": "verified",
+    "note": "편안 녕(본음); 두음 영"
+  },
+  {
+    "char": "屎",
+    "reading": "시",
+    "status": "verified",
+    "note": "똥 시; 히=앓는소리"
+  },
+  {
+    "char": "帥",
+    "reading": "수",
+    "status": "verified",
+    "note": "장수 수; 솔=거느릴"
+  },
+  {
+    "char": "度",
+    "reading": "도",
+    "status": "verified",
+    "note": "법도 도; 탁=忖度(촌탁)"
+  },
+  {
+    "char": "廓",
+    "reading": "곽",
+    "status": "verified",
+    "note": "둘레 곽; 확=넓힐"
+  },
+  {
+    "char": "復",
+    "reading": "복",
+    "status": "verified",
+    "note": "회복 복; 부=다시(復興)"
+  },
+  {
+    "char": "惡",
+    "reading": "악",
+    "status": "verified",
+    "note": "악할 악; 오=憎惡(증오)"
+  },
+  {
+    "char": "愃",
+    "reading": "선",
+    "status": "verified",
+    "note": "너그러울 선; 훤 이독"
+  },
+  {
+    "char": "愼",
+    "reading": "신",
+    "status": "verified",
+    "note": "삼갈 신; 진 이독"
+  },
+  {
+    "char": "拓",
+    "reading": "척",
+    "status": "verified",
+    "note": "넓힐 척; 탁=拓本(탁본)"
+  },
+  {
+    "char": "拾",
+    "reading": "습",
+    "status": "verified",
+    "note": "주울 습; 십=갖은자 수사"
+  },
+  {
+    "char": "數",
+    "reading": "수",
+    "status": "verified",
+    "note": "셈 수; 삭=자주, 촉=촘촘"
+  },
+  {
+    "char": "易",
+    "reading": "역",
+    "status": "verified",
+    "note": "바꿀 역(周易); 이=쉬울(容易)"
+  },
+  {
+    "char": "昭",
+    "reading": "소",
+    "status": "verified",
+    "note": "밝을 소(昭穆)"
+  },
+  {
+    "char": "晢",
+    "reading": "절",
+    "status": "verified",
+    "note": "밝을 절; 제 이독"
+  },
+  {
+    "char": "暈",
+    "reading": "훈",
+    "status": "verified",
+    "note": "무리 훈; 운=어지러울"
+  },
+  {
+    "char": "更",
+    "reading": "경",
+    "status": "verified",
+    "note": "고칠 경; 갱=更生"
+  },
+  {
+    "char": "杲",
+    "reading": "고",
+    "status": "verified",
+    "note": "밝을 고"
+  },
+  {
+    "char": "柰",
+    "reading": "내",
+    "status": "verified",
+    "note": "능금 내; 나 이독"
+  },
+  {
+    "char": "棽",
+    "reading": "침",
+    "status": "verified",
+    "note": "우거질 침; 림 이독"
+  },
+  {
+    "char": "楫",
+    "reading": "즙",
+    "status": "verified",
+    "note": "노 즙; 집 이독"
+  },
+  {
+    "char": "樂",
+    "reading": "악",
+    "status": "verified",
+    "note": "본음 악(音樂); 락=快樂, 요=좋아함"
+  },
+  {
+    "char": "樣",
+    "reading": "양",
+    "status": "verified",
+    "note": "모양 양; 상 이독"
+  },
+  {
+    "char": "殺",
+    "reading": "살",
+    "status": "verified",
+    "note": "죽일 살; 쇄=殺到(쇄도)"
+  },
+  {
+    "char": "沇",
+    "reading": "연",
+    "status": "verified",
+    "note": "강이름 연; 윤 이독"
+  },
+  {
+    "char": "沈",
+    "reading": "침",
+    "status": "verified",
+    "note": "잠길 침; 심=성씨"
+  },
+  {
+    "char": "泌",
+    "reading": "필",
+    "status": "verified",
+    "note": "샘물 필; 비=分泌(분비)"
+  },
+  {
+    "char": "洒",
+    "reading": "세",
+    "status": "verified",
+    "note": "씻을 세; 선/쇄 이독"
+  },
+  {
+    "char": "洗",
+    "reading": "세",
+    "status": "verified",
+    "note": "씻을 세; 선=洗馬"
+  },
+  {
+    "char": "洞",
+    "reading": "동",
+    "status": "verified",
+    "note": "골 동; 통=洞達"
+  },
+  {
+    "char": "洹",
+    "reading": "원",
+    "status": "verified",
+    "note": "강이름 원; 환 이독"
+  },
+  {
+    "char": "湣",
+    "reading": "민",
+    "status": "verified",
+    "note": "시호 민; 혼 이독"
+  },
+  {
+    "char": "溥",
+    "reading": "부",
+    "status": "verified",
+    "note": "클 부; 보=널리"
+  },
+  {
+    "char": "滑",
+    "reading": "활",
+    "status": "verified",
+    "note": "미끄러울 활; 골=滑稽"
+  },
+  {
+    "char": "潦",
+    "reading": "료",
+    "status": "verified",
+    "note": "장마/큰비 료; 로 이독"
+  },
+  {
+    "char": "炎",
+    "reading": "염",
+    "status": "verified",
+    "note": "불꽃 염; 담 이독"
+  },
+  {
+    "char": "炤",
+    "reading": "소",
+    "status": "verified",
+    "note": "밝을 소; 조 이독"
+  },
+  {
+    "char": "烋",
+    "reading": "휴",
+    "status": "verified",
+    "note": "아름다울 휴; 효 이독"
+  },
+  {
+    "char": "焞",
+    "reading": "순",
+    "status": "verified",
+    "note": "밝을 순; 돈 이독"
+  },
+  {
+    "char": "煇",
+    "reading": "휘",
+    "status": "verified",
+    "note": "빛날 휘; 훈 이독"
+  },
+  {
+    "char": "煒",
+    "reading": "위",
+    "status": "verified",
+    "note": "빨갈 위; 휘 이독"
+  },
+  {
+    "char": "燠",
+    "reading": "욱",
+    "status": "verified",
+    "note": "따뜻할 욱; 오/우 이독"
+  },
+  {
+    "char": "狀",
+    "reading": "상",
+    "status": "verified",
+    "note": "형상 상; 장=賞狀(상장)"
+  },
+  {
+    "char": "猗",
+    "reading": "의",
+    "status": "verified",
+    "note": "아름다울 의; 아 이독"
+  },
+  {
+    "char": "率",
+    "reading": "솔",
+    "status": "verified",
+    "note": "거느릴 솔; 률=比率(비율)"
+  },
+  {
+    "char": "珆",
+    "reading": "이",
+    "status": "verified",
+    "note": "옥돌 이; 태 이독"
+  },
+  {
+    "char": "瑩",
+    "reading": "형",
+    "status": "verified",
+    "note": "밝을 형; 영=옥돌"
+  },
+  {
+    "char": "瑱",
+    "reading": "진",
+    "status": "verified",
+    "note": "귀막이옥 진; 전 이독"
+  },
+  {
+    "char": "畝",
+    "reading": "묘",
+    "status": "verified",
+    "note": "이랑 묘; 무 이독"
+  },
+  {
+    "char": "省",
+    "reading": "성",
+    "status": "verified",
+    "note": "살필 성; 생=省略(생략)"
+  },
+  {
+    "char": "磻",
+    "reading": "반",
+    "status": "verified",
+    "note": "磻溪(반계)"
+  },
+  {
+    "char": "禔",
+    "reading": "지",
+    "status": "verified",
+    "note": "복 지; 시/제 이독"
+  },
+  {
+    "char": "約",
+    "reading": "약",
+    "status": "verified",
+    "note": "맺을 약; 요=부절"
+  },
+  {
+    "char": "純",
+    "reading": "순",
+    "status": "verified",
+    "note": "순수 순; 준=가선"
+  },
+  {
+    "char": "索",
+    "reading": "색",
+    "status": "verified",
+    "note": "찾을 색; 삭=索道(삭도)"
+  },
+  {
+    "char": "脫",
+    "reading": "탈",
+    "status": "verified",
+    "note": "벗을 탈; 태=기뻐할"
+  },
+  {
+    "char": "舃",
+    "reading": "석",
+    "status": "verified",
+    "note": "신 석; 작=까치"
+  },
+  {
+    "char": "艾",
+    "reading": "애",
+    "status": "verified",
+    "note": "쑥 애; 예=벨"
+  },
+  {
+    "char": "芋",
+    "reading": "우",
+    "status": "verified",
+    "note": "토란 우; 후 이독"
+  },
+  {
+    "char": "芸",
+    "reading": "운",
+    "status": "verified",
+    "note": "평지 운; 예=김맬(耘)"
+  },
+  {
+    "char": "若",
+    "reading": "약",
+    "status": "verified",
+    "note": "같을 약; 야=般若(반야)"
+  },
+  {
+    "char": "茶",
+    "reading": "다",
+    "status": "verified",
+    "note": "본음 다(茶禮); 차 이독"
+  },
+  {
+    "char": "葉",
+    "reading": "엽",
+    "status": "verified",
+    "note": "잎 엽; 섭=성씨"
+  },
+  {
+    "char": "虫",
+    "reading": "훼",
+    "status": "verified",
+    "note": "본음 훼(살무사); 충=蟲 약체"
+  },
+  {
+    "char": "行",
+    "reading": "행",
+    "status": "verified",
+    "note": "다닐 행; 항=行列(항렬)"
+  },
+  {
+    "char": "見",
+    "reading": "견",
+    "status": "verified",
+    "note": "볼 견; 현=謁見(알현)"
+  },
+  {
+    "char": "訢",
+    "reading": "흔",
+    "status": "verified",
+    "note": "기뻐할 흔; 은 이독"
+  },
+  {
+    "char": "說",
+    "reading": "설",
+    "status": "verified",
+    "note": "말씀 설; 세=遊說, 열=悅"
+  },
+  {
+    "char": "調",
+    "reading": "조",
+    "status": "verified",
+    "note": "고를 조; 주 이독"
+  },
+  {
+    "char": "諟",
+    "reading": "시",
+    "status": "verified",
+    "note": "살필 시; 체 이독"
+  },
+  {
+    "char": "識",
+    "reading": "식",
+    "status": "verified",
+    "note": "알 식; 지=標識(표지)"
+  },
+  {
+    "char": "讀",
+    "reading": "독",
+    "status": "verified",
+    "note": "읽을 독; 두=句讀(구두)"
+  },
+  {
+    "char": "豫",
+    "reading": "예",
+    "status": "verified",
+    "note": "미리 예; 서 이독"
+  },
+  {
+    "char": "豳",
+    "reading": "빈",
+    "status": "verified",
+    "note": "나라이름 빈; 반 이독"
+  },
+  {
+    "char": "貝",
+    "reading": "패",
+    "status": "verified",
+    "note": "조개 패; 배 이독"
+  },
+  {
+    "char": "責",
+    "reading": "책",
+    "status": "verified",
+    "note": "꾸짖을 책; 채=債(빚)"
+  },
+  {
+    "char": "賈",
+    "reading": "고",
+    "status": "verified",
+    "note": "장사 고(商賈); 가=성씨"
+  },
+  {
+    "char": "贇",
+    "reading": "윤",
+    "status": "verified",
+    "note": "예쁠 윤; 빈 이독"
+  },
+  {
+    "char": "車",
+    "reading": "거",
+    "status": "verified",
+    "note": "수레 거; 차=성씨/兵車"
+  },
+  {
+    "char": "輻",
+    "reading": "복",
+    "status": "verified",
+    "note": "바퀴살 복; 폭 이독"
+  },
+  {
+    "char": "辟",
+    "reading": "벽",
+    "status": "verified",
+    "note": "임금 벽; 피=避(피하다)"
+  },
+  {
+    "char": "辰",
+    "reading": "진",
+    "status": "verified",
+    "note": "다섯째 지지 진(辰韓); 신=星辰"
+  },
+  {
+    "char": "鄗",
+    "reading": "호",
+    "status": "verified",
+    "note": "땅이름 호; 교 이독"
+  },
+  {
+    "char": "鄲",
+    "reading": "단",
+    "status": "verified",
+    "note": "邯鄲(한단)"
+  },
+  {
+    "char": "金",
+    "reading": "금",
+    "status": "verified",
+    "note": "쇠 금; 김=성씨(관용)"
+  },
+  {
+    "char": "釗",
+    "reading": "소",
+    "status": "verified",
+    "note": "사람이름 소; 쇠 이독"
+  },
+  {
+    "char": "阮",
+    "reading": "완",
+    "status": "verified",
+    "note": "성 완; 원 이독"
+  },
+  {
+    "char": "降",
+    "reading": "강",
+    "status": "verified",
+    "note": "내릴 강; 항=降伏(항복)"
+  },
+  {
+    "char": "雋",
+    "reading": "준",
+    "status": "verified",
+    "note": "영특할 준; 전 이독"
+  },
+  {
+    "char": "需",
+    "reading": "수",
+    "status": "verified",
+    "note": "구할 수; 유=연약"
+  },
+  {
+    "char": "龜",
+    "reading": "구",
+    "status": "verified",
+    "note": "거북 구; 귀=龜鑑, 균=龜裂"
+  }
+]

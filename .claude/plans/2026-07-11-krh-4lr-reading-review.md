@@ -109,7 +109,7 @@ CLI/MCP 반환·출력 라벨은 `대표음`/`관용` 사용. 내부 필드명 `
 | 조회 헬퍼 | `src/reading/reading-store.ts` | `entity_reading` **읽기** 함수(`lookupByReading`, `readingsOf(entityId)`) 신규 — 현재 쓰기 전용 |
 | 파사드 | `src/history-db.ts` | `searchByReading()` 노출 |
 | CLI | `src/cli/krh.ts` | `search --index reading` 분기 + 결과 `독음(한자)` 병기 출력 |
-| MCP | `src/mcp/tools.ts`·`create-server.ts` | `search_by_reading` 도구 추가(LLM-facing 계약) |
+| MCP | `src/mcp/tools.ts`·`create-server.ts` | `search_by_reading` 도구 추가(LLM-facing 계약). **반환 독음 객체에 의미 필드 병기**(코덱스 제안 수용): `{reading, readingType, displayRole('dictionary_headword'\|'conventional_reading'), label('대표음(사전 표제음)'\|'관용 독음'), source(synth\|dict\|llm\|seed), confidence}`. 🔴 displayRole·label은 **표시 어댑터에서 readingType로 파생**(DB 컬럼 추가 X), provenance는 기존 `source`/`confidence`/`status` 노출 — 근거 데이터↔해석 층 분리 유지(trust-principle). 연구자가 '사전 채택 검색 기준값 ≠ 프로젝트 역사 해석'임을 인지 |
 | 표시 | place/cluster 출력 | surface에 `원음(한자)` 병기(reading 조회 join) |
 | 테스트 | `tests/search-by-reading.test.ts` + e2e | `강감찬`→`姜邯贊` 매칭, 병기 반환 계약, MCP 도구 왕복 |
 
