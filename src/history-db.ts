@@ -22,6 +22,7 @@ import {
   type ImportResultsStats,
 } from './translate/batch';
 import { ingestUnihan, type IngestUnihanResult } from './reading/ingest-unihan';
+import { ingestSimplified, type IngestSimplifiedResult } from './reading/simplified';
 import { loadCharMap } from './reading/reading-store';
 import { buildDictIndex } from './reading/dict-source';
 import { loadSeeds, type Seeds } from './reading/seed';
@@ -124,6 +125,11 @@ export class HistoryDb {
   /** Unihan_Readings.txt(kHangul)를 char_reading에 적재한다(독음 사전 재료) */
   ingestUnihan(readingsPath: string): Promise<IngestUnihanResult> {
     return ingestUnihan(this.conn, { readingsPath });
+  }
+
+  /** Unihan_Variants.txt(kSimplifiedVariant)를 char_simplified에 적재한다(간자체 병기 재료) */
+  ingestSimplified(variantsPath: string): Promise<IngestSimplifiedResult> {
+    return ingestSimplified(this.conn, { variantsPath });
   }
 
   /** 독음 사전을 구축한다(원음 확정 → 관용 도출). 시드·표준국어대사전 소스를 결합한다 */

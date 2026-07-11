@@ -91,6 +91,13 @@ export {
 } from './reading/batch';
 export { loadVariantMap, type VariantTarget } from './reading/variant-source';
 export {
+  ingestSimplified,
+  loadSimplifiedMap,
+  toSimplified,
+  type SimplifiedResult,
+  type IngestSimplifiedResult,
+} from './reading/simplified';
+export {
   classifyByVariant,
   type MigrateEntry,
   type ClassifyResult,

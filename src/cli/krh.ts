@@ -219,7 +219,8 @@ cli
       for (const m of result.matches) {
         const rep = m.original ?? m.surface;
         const annot = m.conventional && m.conventional !== m.original ? `〔관용 ${m.conventional}〕` : '';
-        console.log(`  ${rep}(${m.surface})${annot}  [${m.type}]`);
+        const simp = m.simplified ? ` · 간체 ${m.simplified}` : '';
+        console.log(`  ${rep}(${m.surface})${annot}${simp}  [${m.type}]`);
       }
       if (result.surfaces.length > 0) {
         console.log(`(표기: ${result.surfaces.join(' ')})`);
@@ -270,7 +271,8 @@ cli
       });
       db.close();
       for (const n of neighbors) {
-        console.log(`${String(n.count).padStart(5)}  ${n.type}  ${n.surface}`);
+        const simp = n.simplified ? ` (간체 ${n.simplified})` : '';
+        console.log(`${String(n.count).padStart(5)}  ${n.type}  ${n.surface}${simp}`);
       }
       console.log(`(${neighbors.length}개 이웃)`);
     },

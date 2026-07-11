@@ -8,6 +8,7 @@
  */
 import type { Client } from '@libsql/client';
 import type { ClusterNeighbor } from '../types';
+import { loadSimplifiedMap, toSimplified } from '../reading/simplified';
 
 /** 공기 범위: article=기사(node) 단위, paragraph=문단(passage) 단위 */
 export type ClusterScope = 'article' | 'paragraph';
@@ -84,9 +85,16 @@ export async function cluster(
     args,
   });
 
-  return result.rows.map((row) => ({
-    type: String(row.type),
-    surface: String(row.surface),
-    count: Number(row.count),
-  }));
+  // 간자체 병기(정자 surface 불변, 다를 때만 simplified 추가 — 지명을 지도에서 대조하는 진입점)
+  const simpMap = await loadSimplifiedMap(client);
+  return result.rows.map((row) => {
+    const surface = String(row.surface);
+    const s = toSimplified(surface, simpMap);
+    return {
+      type: String(row.type),
+      surface,
+      count: Number(row.count),
+      ...(s.changed ? { simplified: s.simplified } : {}),
+    };
+  });
 }

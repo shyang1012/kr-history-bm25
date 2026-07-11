@@ -104,10 +104,12 @@ export interface VariantSearchResult {
 export interface ClusterNeighbor {
   /** 개체 유형 */
   type: string;
-  /** 표기(한자) */
+  /** 표기(한자·정자 원문, 불변) */
   surface: string;
   /** 선택 scope 단위 공기(共起) 빈도(article=공기 기사 수 / paragraph=공기 문단 수) */
   count: number;
+  /** 간자체 병기(정자와 다를 때만·복사→지도 검색용). 원문 surface는 불변, 표시 전용 */
+  simplified?: string;
 }
 
 /** 구조화 조회 결과 1건 */

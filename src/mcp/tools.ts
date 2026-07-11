@@ -36,7 +36,12 @@ function readingResult(r: ReadingSearchResult): unknown {
           ...readingDisplay('conventional'),
         });
       }
-      return { surface: m.surface, type: m.type, readings };
+      return {
+        surface: m.surface,
+        type: m.type,
+        ...(m.simplified ? { simplified: m.simplified } : {}),
+        readings,
+      };
     }),
     surfaces: r.surfaces,
     hits: r.hits,

@@ -11,6 +11,7 @@ import type { Client } from '@libsql/client';
 import type { SearchHit } from '../types';
 import { buildPhraseQuery } from '../ingest/tokenizer';
 import { lookupEntitiesByReading } from '../reading/reading-store';
+import { loadSimplifiedMap, toSimplified } from '../reading/simplified';
 import { expandVariants } from './variants';
 import { searchHanByMatch, type SearchHanOptions } from './search-han';
 
@@ -28,6 +29,8 @@ export interface ReadingMatch {
   conventional: string | null;
   /** 대표음 출처(synth|dict|llm|seed|rule) */
   originalSource: string | null;
+  /** 간자체 병기(정자와 다를 때만·복사→지도 검색용). 원문 surface는 불변, 이 값은 별도 표시용 */
+  simplified?: string;
 }
 
 /** reading-aware 검색 결과 */
@@ -74,9 +77,18 @@ export async function searchByReading(
   query: string,
   options: SearchHanOptions = {},
 ): Promise<ReadingSearchResult> {
-  const matches = await lookupEntitiesByReading(client, query, options.limit);
+  const matches: ReadingMatch[] = await lookupEntitiesByReading(client, query, options.limit);
   if (matches.length === 0) {
     return { query, matches: [], surfaces: [], hits: [] };
+  }
+
+  // 간자체 병기(정자 surface는 불변, 다를 때만 simplified 추가)
+  const simpMap = await loadSimplifiedMap(client);
+  for (const m of matches) {
+    const s = toSimplified(m.surface, simpMap);
+    if (s.changed) {
+      m.simplified = s.simplified;
+    }
   }
 
   // 매칭 표기 → 이표기 확장 → 중복 제거(입력 순서 보존)
