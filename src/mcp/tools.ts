@@ -80,6 +80,7 @@ export function registerTools(server: McpServer, corpus: McpCorpus): void {
       title: '한자 원문 BM25 검색',
       description:
         '한자 원문을 BM25로 검색한다. 지명·인명·관직·서명 등 고유명사 검색에 사용한다(한자가 신뢰 근거). ' +
+        '간자체(简体) 질의도 자동으로 정자(번체) 후보로 확장해 검색한다(중국어권 연구자 지원). ' +
         '사건·현상·서술어는 search_ko를 쓴다. score는 작을수록 관련이 높다.',
       inputSchema: {
         term: z.string().min(1).describe('검색어(한자)'),

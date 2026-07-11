@@ -94,8 +94,11 @@ export {
   ingestSimplified,
   loadSimplifiedMap,
   toSimplified,
+  loadTraditionalForChars,
+  expandSimplifiedToTraditional,
   type SimplifiedResult,
   type IngestSimplifiedResult,
+  type QueryExpansion,
 } from './reading/simplified';
 export {
   classifyByVariant,

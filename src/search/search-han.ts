@@ -8,6 +8,10 @@
 import type { Client } from '@libsql/client';
 import type { SearchHit } from '../types';
 import { buildPhraseQuery } from '../ingest/tokenizer';
+import {
+  loadTraditionalForChars,
+  expandSimplifiedToTraditional,
+} from '../reading/simplified';
 
 /** 한자 검색 옵션 */
 export interface SearchHanOptions {
@@ -29,7 +33,13 @@ export async function searchHan(
   term: string,
   options: SearchHanOptions = {},
 ): Promise<SearchHit[]> {
-  const match = buildPhraseQuery(term);
+  // 간자체 질의 자동 정규화 — 간체가 감지되면 정자 후보로 OR 확장(중국어권 연구자도 그대로 검색). 정자 질의는 불변.
+  const revMap = await loadTraditionalForChars(client, [...term]);
+  const { candidates } = expandSimplifiedToTraditional(term, revMap);
+  const match = candidates
+    .map(buildPhraseQuery)
+    .filter((m) => m !== '')
+    .join(' OR ');
   if (match === '') {
     return [];
   }

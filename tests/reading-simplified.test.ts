@@ -7,10 +7,18 @@
  * @LastModified: 2026-07-11
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createDbConnection, type DbConnection } from '../src/db/client';
 import { runMigrations } from '../src/db/migrate';
-import { ingestSimplified, loadSimplifiedMap, toSimplified } from '../src/reading/simplified';
+import {
+  ingestSimplified,
+  loadSimplifiedMap,
+  toSimplified,
+  loadTraditionalForChars,
+  expandSimplifiedToTraditional,
+} from '../src/reading/simplified';
+import { openBundledDb } from '../src/bundled-db';
 
 describe('toSimplified — 정자→간자체 변환(원문 불변, 병기 전용)', () => {
   it('간자체가 있는 글자는 변환하고 changed=true', () => {
@@ -57,5 +65,54 @@ describe('ingestSimplified — Unihan kSimplifiedVariant 적재', () => {
     // 픽스처: 義(U+7FA9) kSimplifiedVariant 义(U+4E49)
     expect(map.get('義')).toBe('义');
     expect(toSimplified('義', map)).toEqual({ simplified: '义', changed: true });
+  });
+
+  it('역방향(간자체→정자) 로드로 질의를 정자로 확장한다', async () => {
+    // 픽스처의 義→义 매핑 기반: 간자체 义 질의 → 정자 義 후보
+    const revMap = await loadTraditionalForChars(conn.client, ['义']);
+    expect(revMap.get('义')).toContain('義');
+    const exp = expandSimplifiedToTraditional('义', revMap);
+    expect(exp.changed).toBe(true);
+    expect(exp.candidates).toContain('義');
+    expect(exp.candidates).toContain('义'); // 원 질의 항상 포함
+  });
+});
+
+describe('expandSimplifiedToTraditional — 간자체 질의 확장(OR)', () => {
+  it('각 글자를 정자 후보로 조합하고 원 질의를 포함한다', () => {
+    const revMap = new Map<string, string[]>([
+      ['辽', ['遼']],
+      ['东', ['東']],
+    ]);
+    const exp = expandSimplifiedToTraditional('辽东', revMap);
+    expect(exp.changed).toBe(true);
+    expect(exp.candidates).toContain('遼東');
+    expect(exp.candidates).toContain('辽东');
+  });
+
+  it('다대일 모호 글자는 후보를 모두 낸다(OR, 놓침 없음)', () => {
+    const revMap = new Map<string, string[]>([['后', ['後', '后']]]);
+    const exp = expandSimplifiedToTraditional('后', revMap);
+    expect(exp.candidates).toEqual(expect.arrayContaining(['後', '后']));
+  });
+
+  it('간자체가 없으면 원 질의만·changed=false(정자 질의 불변)', () => {
+    const exp = expandSimplifiedToTraditional('遼東', new Map());
+    expect(exp).toEqual({ candidates: ['遼東'], changed: false });
+  });
+});
+
+const gzPath = fileURLToPath(new URL('../data/history.sqlite.gz', import.meta.url));
+
+describe.skipIf(!existsSync(gzPath))('searchHan — 간자체 질의 e2e(동봉 코퍼스)', () => {
+  it('간자체 辽东으로 검색해도 정자 遼東 원문이 잡힌다', async () => {
+    const db = await openBundledDb();
+    const exp = await db.traditionalize('辽东');
+    expect(exp.changed).toBe(true);
+    expect(exp.candidates).toContain('遼東');
+    const hits = await db.searchHan('辽东', { limit: 5 });
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.some((h) => h.textHan.includes('遼東'))).toBe(true);
+    db.close();
   });
 });

@@ -22,7 +22,13 @@ import {
   type ImportResultsStats,
 } from './translate/batch';
 import { ingestUnihan, type IngestUnihanResult } from './reading/ingest-unihan';
-import { ingestSimplified, type IngestSimplifiedResult } from './reading/simplified';
+import {
+  ingestSimplified,
+  loadTraditionalForChars,
+  expandSimplifiedToTraditional,
+  type IngestSimplifiedResult,
+  type QueryExpansion,
+} from './reading/simplified';
 import { loadCharMap } from './reading/reading-store';
 import { buildDictIndex } from './reading/dict-source';
 import { loadSeeds, type Seeds } from './reading/seed';
@@ -100,6 +106,12 @@ export class HistoryDb {
   /** reading-aware 검색 — 한글 독음으로 한자 표기를 찾아 원문 병합 검색(대표음·관용 병기) */
   searchByReading(query: string, options?: SearchHanOptions): Promise<ReadingSearchResult> {
     return searchByReading(this.conn.client, query, options);
+  }
+
+  /** 간자체 질의를 정자 후보로 확장한다(투명성 표시용). searchHan은 내부적으로 이를 자동 적용한다 */
+  async traditionalize(term: string): Promise<QueryExpansion> {
+    const revMap = await loadTraditionalForChars(this.conn.client, [...term]);
+    return expandSimplifiedToTraditional(term, revMap);
   }
 
   /** 구조화 색인 조회(표기 출현 위치) */

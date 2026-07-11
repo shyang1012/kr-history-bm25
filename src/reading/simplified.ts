@@ -58,7 +58,9 @@ export async function ingestSimplified(
  * @returns 정자 char → 간자체 char
  */
 export async function loadSimplifiedMap(client: Client): Promise<Map<string, string>> {
-  const result = await client.execute('SELECT char, simplified FROM char_simplified');
+  const result = await client.execute(`SELECT char
+                                            , simplified 
+                                         FROM char_simplified`);
   const map = new Map<string, string>();
   for (const row of result.rows) {
     map.set(String(row.char), String(row.simplified));
@@ -93,4 +95,86 @@ export function toSimplified(surface: string, map: Map<string, string>): Simplif
     })
     .join('');
   return { simplified: out, changed };
+}
+
+/**
+ * 질의 글자들에 한정해 역방향 맵(간자체 → 정자 후보[])을 로드한다. char_simplified를 역인덱스로 뒤집는다.
+ * 하나의 간자체가 복수 정자에서 왔을 수 있어(다대일) 후보는 배열이다.
+ * @param client - libsql 클라이언트
+ * @param chars - 질의에 등장한 글자들
+ * @returns 간자체 char → 정자 char[]
+ */
+export async function loadTraditionalForChars(
+  client: Client,
+  chars: string[],
+): Promise<Map<string, string[]>> {
+  const distinct = [...new Set(chars)];
+  const map = new Map<string, string[]>();
+  if (distinct.length === 0) {
+    return map;
+  }
+  const placeholders = distinct.map(() => '?').join(', ');
+  const result = await client.execute({
+    sql: `SELECT char
+               , simplified 
+            FROM char_simplified 
+           WHERE simplified IN (${placeholders})`,
+    args: distinct,
+  });
+  for (const row of result.rows) {
+    const trad = String(row.char);
+    const simp = String(row.simplified);
+    const list = map.get(simp) ?? [];
+    list.push(trad);
+    map.set(simp, list);
+  }
+  return map;
+}
+
+/** 간자체 질의 확장 결과 */
+export interface QueryExpansion {
+  /** 검색에 쓸 정자 후보 표기(원 질의 포함) */
+  candidates: string[];
+  /** 간자체가 감지돼 정자로 확장됐는가 */
+  changed: boolean;
+}
+
+/** 후보 조합 폭주 방지 상한(모호 글자 다수 시) */
+const MAX_CANDIDATES = 16;
+
+/**
+ * 간자체 질의를 정자 후보로 확장한다(다대일 모호는 OR 확장으로 전부 포함, 안전). 원 질의는 항상 포함한다.
+ * @param query - 검색 질의(간자체 가능)
+ * @param revMap - loadTraditionalForChars 결과(간자체→정자[])
+ * @returns 정자 후보 목록 + 변경 여부
+ */
+export function expandSimplifiedToTraditional(
+  query: string,
+  revMap: Map<string, string[]>,
+): QueryExpansion {
+  let changed = false;
+  let combos: string[] = [''];
+  for (const ch of query) {
+    const trads = revMap.get(ch);
+    const options = trads && trads.length > 0 ? trads : [ch];
+    if (trads && trads.length > 0) {
+      changed = true;
+    }
+    const next: string[] = [];
+    for (const prefix of combos) {
+      for (const opt of options) {
+        next.push(prefix + opt);
+        if (next.length >= MAX_CANDIDATES) {
+          break;
+        }
+      }
+      if (next.length >= MAX_CANDIDATES) {
+        break;
+      }
+    }
+    combos = next;
+  }
+  const set = new Set(combos);
+  set.add(query); // 원 질의(정자 그대로거나 코퍼스에 실재 가능) 항상 포함
+  return { candidates: [...set], changed };
 }

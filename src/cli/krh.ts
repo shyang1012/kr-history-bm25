@@ -238,6 +238,12 @@ cli
       }
       console.log(`(${hits.length}건)`);
     } else {
+      // 간자체 질의면 정자 정규화 결과를 먼저 알린다(투명성). searchHan은 내부에서 자동 확장한다.
+      const expansion = await db.traditionalize(term);
+      if (expansion.changed) {
+        const trad = expansion.candidates.filter((c) => c !== term);
+        console.log(`(간자체 질의 정규화: ${term} → ${trad.join(' / ')})`);
+      }
       const hits = await db.searchHan(term, { limit });
       for (const h of hits) {
         console.log(`[${h.corpusCode}] ${h.nodeId} ${h.score.toFixed(2)}  ${truncate(h.textHan)}`);
