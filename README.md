@@ -17,7 +17,9 @@
 (Literary Chinese / Hanja, 漢文)** — into a self-contained, searchable **SQLite BM25 full-text corpus**.
 
 It covers the core historical texts for **Goguryeo, Baekje, Silla, Gaya, Gojoseon, and Goryeo**
-research and for **historical-geography / toponym (place-name) identification**:
+(高麗 — read ***Gori*** 고리 in its original reading; the phonetic source of the Western exonym
+***Corea / Korea***, whereas "Goryeo" is the later conventional reading) — for early-Korea studies
+and **historical-geography / toponym (place-name) identification**:
 
 - ***Samguk Sagi*** (三國史記, *History of the Three Kingdoms*)
 - ***Samguk Yusa*** (三國遺事, *Memorabilia of the Three Kingdoms*)
@@ -62,9 +64,10 @@ The design principle: **the Hanja source is always the authority.** Translations
 Simplified-Chinese forms are secondary discovery/access layers — never the basis of a conclusion.
 The tool surfaces the evidence; the researcher draws the conclusions. See the methodology below.
 
-*Keywords: Korean history, classical Chinese, Literary Chinese, Hanja, full-text search, BM25,
-historical geography, toponym identification, Samguk Sagi, Samguk Yusa, Goryeosa, Goguryeo, Baekje,
-Silla, Gojoseon, Lelang/Nakrang (樂浪), Liaodong (遼東), Simplified/Traditional Chinese, MCP.*
+*Keywords: Korean history, Corea, Korea (高麗 / 고리 *Gori*), classical Chinese, Literary Chinese,
+Hanja, full-text search, BM25, historical geography, toponym identification, Samguk Sagi, Samguk
+Yusa, Goryeosa, Goguryeo, Baekje, Silla, Gojoseon, Lelang/Nakrang (樂浪), Liaodong (遼東),
+Simplified/Traditional Chinese, MCP.*
 
 ---
 
