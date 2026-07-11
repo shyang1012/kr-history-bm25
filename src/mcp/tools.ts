@@ -196,9 +196,22 @@ export function registerTools(server: McpServer, corpus: McpCorpus): void {
           .describe(
             'fixed(기본)|auto(seed별 자동 산정 — 희소·고빈도 seed 적응, 선정근거 selection 반환)',
           ),
-        simMin: z.number().positive().optional().describe('soft eps(이웃 유사도 하한, fixed)'),
-        muMin: z.number().positive().optional().describe('코어 밀도 하한(fixed)'),
-        minCooc: z.number().int().positive().optional().describe('엣지 컷(최소 공기 수)'),
+        simMin: z
+          .number()
+          .positive()
+          .optional()
+          .describe('soft eps(이웃 유사도 하한). fixed 전용 — auto 모드에서는 무시됨'),
+        muMin: z
+          .number()
+          .positive()
+          .optional()
+          .describe('코어 밀도 하한. fixed 전용 — auto 모드에서는 무시됨'),
+        minCooc: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe('엣지 컷(최소 공기 수). fixed 전용 — auto 모드에서는 자동 산정됨'),
         limit: z.number().int().positive().max(1000).optional().describe('seed 이웃(U) 상한'),
       },
     },

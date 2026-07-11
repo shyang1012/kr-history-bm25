@@ -71,7 +71,13 @@ export function fdbscan(
     density.set(p, rho);
   }
 
-  const core = new Set<string>(ids.filter((p) => (density.get(p) ?? 0) >= muMin));
+  // 코어: 밀도 ρ≥muMin. 🔴 ρ>0 필수 — muMin≤0이라도 고립점(ρ=0)은 코어가 될 수 없다(노이즈 불변식).
+  const core = new Set<string>(
+    ids.filter((p) => {
+      const rho = density.get(p) ?? 0;
+      return rho > 0 && rho >= muMin;
+    }),
+  );
 
   // 코어 연결요소 → 군집. 정렬 순회라 clusterId는 최소 멤버 순으로 canonical.
   const clusterOf = new Map<string, number>();

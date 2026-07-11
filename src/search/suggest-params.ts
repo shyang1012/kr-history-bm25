@@ -36,7 +36,7 @@ export interface SuggestedParams {
 export interface SuggestOptions {
   scope?: PlaceScope;
   limit?: number;
-  /** simMin 산정 분위수(기본 0.6) */
+  /** simMin 산정 분위수(기본 0.8) */
   simQuantile?: number;
   /** muMin 산정 분위수(기본 0.5) */
   muQuantile?: number;

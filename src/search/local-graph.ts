@@ -49,9 +49,6 @@ export async function fetchLocalGraph(
   opts: { scope: PlaceScope; minCooc: number; limit: number },
 ): Promise<LocalGraph | null> {
   const unit = SCOPE_UNIT[opts.scope];
-  const placeUnits = `SELECT DISTINCT m.${unit} AS unit, m.entity_id
-                        FROM entity_mention m
-                        JOIN entity e ON e.id = m.entity_id AND e.type = '지명'`;
 
   const seedRow = await client.execute({
     sql: `SELECT id FROM entity WHERE surface = ? AND type = '지명'`,
@@ -63,29 +60,32 @@ export async function fetchLocalGraph(
   }
   const seedId = Number(seedIdRow.id);
 
-  // U 이웃: seed와 공기하는 지명(cooc DESC, entity_id ASC, limit 절단)
+  // U 이웃: seed의 unit(mention_entity_idx)으로 먼저 좁힌 뒤 그 unit 내 지명만 집계(전역 스캔 회피).
+  // limit+1 조회로 '정확히 limit(비절단)' vs '절단'을 구분한다.
   const nbrRes = await client.execute({
     sql: `
-      WITH place_units AS (${placeUnits})
-         , seed_units AS (SELECT DISTINCT unit FROM place_units WHERE entity_id = ?)
-      SELECT pu.entity_id AS entity_id
-           , e.surface    AS surface
-           , e.type       AS type
-           , COUNT(DISTINCT pu.unit) AS cooc
-        FROM place_units pu
-        JOIN entity e ON e.id = pu.entity_id
-       WHERE pu.unit IN (SELECT unit FROM seed_units)
-         AND pu.entity_id <> ?
-       GROUP BY pu.entity_id
+      WITH seed_units AS (
+        SELECT DISTINCT ${unit} AS unit FROM entity_mention WHERE entity_id = ?
+      )
+      SELECT m.entity_id           AS entity_id
+           , e.surface             AS surface
+           , e.type                AS type
+           , COUNT(DISTINCT m.${unit}) AS cooc
+        FROM entity_mention m
+        JOIN entity e ON e.id = m.entity_id AND e.type = '지명'
+       WHERE m.${unit} IN (SELECT unit FROM seed_units)
+         AND m.entity_id <> ?
+       GROUP BY m.entity_id
       HAVING cooc >= ?
-       ORDER BY cooc DESC, pu.entity_id ASC
+       ORDER BY cooc DESC, m.entity_id ASC
        LIMIT ?`,
-    args: [seedId, seedId, opts.minCooc, opts.limit],
+    args: [seedId, seedId, opts.minCooc, opts.limit + 1],
   });
-  const truncated = nbrRes.rows.length >= opts.limit;
+  const truncated = nbrRes.rows.length > opts.limit;
+  const neighborRows = nbrRes.rows.slice(0, opts.limit);
 
   const u: UEntity[] = [{ entityId: seedId, surface: seed, type: '지명' }];
-  for (const r of nbrRes.rows) {
+  for (const r of neighborRows) {
     u.push({ entityId: Number(r.entity_id), surface: String(r.surface), type: String(r.type) });
   }
 
@@ -98,26 +98,31 @@ export async function fetchLocalGraph(
   const ids = u.map((x) => x.entityId);
   const placeholders = ids.map(() => '?').join(', ');
 
+  // deg(X) = X가 등장한 전체 DISTINCT unit 수(Jaccard 분모용). entity_id IN(U)로 제한(mention_entity_idx).
   const degRes = await client.execute({
-    sql: `WITH place_units AS (${placeUnits})
-          SELECT entity_id, COUNT(*) AS deg FROM place_units
-           WHERE entity_id IN (${placeholders}) GROUP BY entity_id`,
+    sql: `SELECT entity_id, COUNT(DISTINCT ${unit}) AS deg
+            FROM entity_mention
+           WHERE entity_id IN (${placeholders})
+           GROUP BY entity_id`,
     args: ids,
   });
   for (const r of degRes.rows) {
     deg.set(Number(r.entity_id), Number(r.deg));
   }
 
+  // U 내부 pairwise 공기 — place_units를 U로 한정(전역 아님) + 상삼각.
   const pairRes = await client.execute({
     sql: `
-      WITH place_units AS (${placeUnits})
+      WITH pu AS (
+        SELECT DISTINCT ${unit} AS unit, entity_id
+          FROM entity_mention WHERE entity_id IN (${placeholders})
+      )
       SELECT a.entity_id AS a, b.entity_id AS b, COUNT(DISTINCT a.unit) AS cooc
-        FROM place_units a
-        JOIN place_units b ON b.unit = a.unit AND b.entity_id < a.entity_id
-       WHERE a.entity_id IN (${placeholders}) AND b.entity_id IN (${placeholders})
+        FROM pu a
+        JOIN pu b ON b.unit = a.unit AND b.entity_id < a.entity_id
        GROUP BY a.entity_id, b.entity_id
       HAVING cooc >= ?`,
-    args: [...ids, ...ids, opts.minCooc],
+    args: [...ids, opts.minCooc],
   });
   for (const r of pairRes.rows) {
     const a = Number(r.a);

@@ -132,6 +132,8 @@ export interface PlaceClusterSelection {
   score?: number;
   /** suggest 초기 추천값(auto) */
   suggested?: { minCooc: number; simMin: number; muMin: number };
+  /** 전 후보 병리 시 fixed 기본값으로 폴백했음을 표시(auto) */
+  fallback?: 'fixed-default';
 }
 
 /** seed 유도 국소 퍼지 군집 결과(전역 밀도 아님) */

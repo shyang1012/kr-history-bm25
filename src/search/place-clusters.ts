@@ -184,7 +184,7 @@ export async function placeClusters(
   };
 }
 
-/** auto 모드 — suggest 추천 → 좁은 sweep(simMin/muMin ×{0.8,1,1.2}) → 품질 최고 선택 */
+/** auto 모드 — suggest 추천 → 좁은 sweep(simMin/muMin ×{0.7,1,1.5,2.2}) → 품질 최고 선택. 전부 병리면 fixed 폴백 */
 async function placeClustersAuto(
   client: Client,
   seed: string,
@@ -246,7 +246,18 @@ async function placeClustersAuto(
       }
     }
   }
-  const chosen = best as { score: number; simMin: number; muMin: number; result: FdbscanResult };
+  let chosen = best as { score: number; simMin: number; muMin: number; result: FdbscanResult };
+
+  // 🔴 전 후보가 병리(score=-Infinity)면 sweep가 무의미 — fixed 기본 파라미터로 폴백(무군집 회피).
+  let fallback = false;
+  if (chosen.score === -Infinity) {
+    fallback = true;
+    const simMin = DEFAULT_PARAMS.simMin;
+    const muMin = DEFAULT_PARAMS.muMin;
+    const result = fdbscan(surfaces, sim, { simMin, muMin });
+    const score = scoreCandidate(result.clusters.length, metricsOf(uSize, result));
+    chosen = { score, simMin, muMin, result };
+  }
 
   const simpMap = await loadSimplifiedMap(client);
   const { clusters, noise } = assembleResult(graph, chosen.result, simpMap);
@@ -262,6 +273,10 @@ async function placeClustersAuto(
     truncated: graph.truncated,
     clusters,
     noise,
-    selection: { ...selection, score: round(chosen.score) },
+    selection: {
+      ...selection,
+      score: round(chosen.score),
+      ...(fallback ? { fallback: 'fixed-default' as const } : {}),
+    },
   };
 }
