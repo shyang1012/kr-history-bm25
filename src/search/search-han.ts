@@ -8,10 +8,7 @@
 import type { Client } from '@libsql/client';
 import type { SearchHit } from '../types';
 import { buildPhraseQuery } from '../ingest/tokenizer';
-import {
-  loadTraditionalForChars,
-  expandSimplifiedToTraditional,
-} from '../reading/simplified';
+import { loadTraditionalForChars, expandSimplifiedToTraditional } from '../reading/simplified';
 
 /** 한자 검색 옵션 */
 export interface SearchHanOptions {

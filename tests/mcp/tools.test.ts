@@ -127,9 +127,20 @@ describe('MCP tools', () => {
     expect(parsed.matches[0].surface).toBe('姜邯贊');
     const rep = parsed.matches[0].readings.find((r) => r.readingType === 'original');
     const conv = parsed.matches[0].readings.find((r) => r.readingType === 'conventional');
-    expect(rep).toMatchObject({ reading: '강한찬', displayRole: 'dictionary_headword', label: '대표음(사전 표제음)' });
-    expect(conv).toMatchObject({ reading: '강감찬', displayRole: 'conventional_reading', label: '관용 독음' });
-    expect(calls.searchByReading).toEqual({ query: '강감찬', options: { limit: undefined, corpusCode: undefined } });
+    expect(rep).toMatchObject({
+      reading: '강한찬',
+      displayRole: 'dictionary_headword',
+      label: '대표음(사전 표제음)',
+    });
+    expect(conv).toMatchObject({
+      reading: '강감찬',
+      displayRole: 'conventional_reading',
+      label: '관용 독음',
+    });
+    expect(calls.searchByReading).toEqual({
+      query: '강감찬',
+      options: { limit: undefined, corpusCode: undefined },
+    });
     await client.close();
   });
 

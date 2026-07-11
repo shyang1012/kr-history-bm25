@@ -218,7 +218,8 @@ cli
       const result = await db.searchByReading(term, { limit });
       for (const m of result.matches) {
         const rep = m.original ?? m.surface;
-        const annot = m.conventional && m.conventional !== m.original ? `〔관용 ${m.conventional}〕` : '';
+        const annot =
+          m.conventional && m.conventional !== m.original ? `〔관용 ${m.conventional}〕` : '';
         const simp = m.simplified ? ` · 간체 ${m.simplified}` : '';
         console.log(`  ${rep}(${m.surface})${annot}${simp}  [${m.type}]`);
       }
@@ -254,7 +255,10 @@ cli
   });
 
 cli
-  .command('cluster <surface>', '공기하는 지명·개체(군집). scope로 범위 조절(article=기사/paragraph=문단)')
+  .command(
+    'cluster <surface>',
+    '공기하는 지명·개체(군집). scope로 범위 조절(article=기사/paragraph=문단)',
+  )
   .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
   .option('--type <type>', '대상 개체 유형')
   .option('--neighbor-type <type>', '이웃 개체 유형(예: 지명)')

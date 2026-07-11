@@ -70,7 +70,10 @@ describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
     const client = new Client({ name: 'e2e-reading', version: '0.0.0' });
     await Promise.all([server.connect(st), client.connect(ct)]);
 
-    const res = await client.callTool({ name: 'search_by_reading', arguments: { query: '강감찬' } });
+    const res = await client.callTool({
+      name: 'search_by_reading',
+      arguments: { query: '강감찬' },
+    });
     const content = res.content as { type: string; text: string }[];
     const parsed = JSON.parse(content[0].text) as {
       surfaces: string[];
@@ -91,7 +94,10 @@ describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
     const client = new Client({ name: 'e2e-simplified', version: '0.0.0' });
     await Promise.all([server.connect(st), client.connect(ct)]);
 
-    const res = await client.callTool({ name: 'search_han', arguments: { term: '辽东', limit: 5 } });
+    const res = await client.callTool({
+      name: 'search_han',
+      arguments: { term: '辽东', limit: 5 },
+    });
     const content = res.content as { type: string; text: string }[];
     const hits = JSON.parse(content[0].text) as { textHan: string }[];
     expect(hits.length).toBeGreaterThan(0);
