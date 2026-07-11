@@ -46,12 +46,14 @@ import { lookupPlace, type LookupOptions } from './search/lookup-place';
 import { cluster, type ClusterOptions } from './search/cluster';
 import { withVariants, addVariantGroup, type VariantMemberSpec } from './search/variants';
 import { searchByReading, type ReadingSearchResult } from './search/search-by-reading';
+import { placeClusters, type PlaceClusterOptions } from './search/place-clusters';
 import type {
   SearchHit,
   KoSearchHit,
   PlaceOccurrence,
   ClusterNeighbor,
   VariantSearchResult,
+  PlaceClusterResult,
 } from './types';
 
 /** 한국사 BM25 코퍼스 핸들 */
@@ -112,6 +114,11 @@ export class HistoryDb {
   async traditionalize(term: string): Promise<QueryExpansion> {
     const revMap = await loadTraditionalForChars(this.conn.client, [...term]);
     return expandSimplifiedToTraditional(term, revMap);
+  }
+
+  /** seed 유도 국소 퍼지 지명 군집(FDBSCAN) — 공기 기반 소속도(전역 밀도 아님) */
+  placeClusters(seed: string, options?: PlaceClusterOptions): Promise<PlaceClusterResult> {
+    return placeClusters(this.conn.client, seed, options);
   }
 
   /** 구조화 색인 조회(표기 출현 위치) */

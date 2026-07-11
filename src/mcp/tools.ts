@@ -1,7 +1,7 @@
 /**
  * @Project: kr-history-bm25
  * @File: tools.ts
- * @Description: MCP 도구 6종 등록 — search_han/search_ko/lookup_place/cluster/with_variants/search_by_reading.
+ * @Description: MCP 도구 7종 등록 — search_han/search_ko/search_by_reading/lookup_place/cluster/with_variants/place_clusters.
  *               HistoryDb 파사드에 1:1 매핑하는 얇은 어댑터. 결과는 JSON 텍스트로 반환한다.
  *               도구 설명에 사용 지침(고유명사→han / 사건·서술어→ko)을 인코딩해 LLM 선택을 돕는다.
  * @Author: shyang
@@ -175,5 +175,28 @@ export function registerTools(server: McpServer, corpus: McpCorpus): void {
     },
     async ({ query, limit, corpusCode }) =>
       jsonResult(readingResult(await corpus.searchByReading(query, { limit, corpusCode }))),
+  );
+
+  server.registerTool(
+    'place_clusters',
+    {
+      title: '지명 국소 퍼지 군집(FDBSCAN)',
+      description:
+        'seed 지명의 공기(共起) 국소 네트워크를 퍼지 밀도 군집한다. 경계 지명은 여러 군집에 소속도로 분할된다. ' +
+        '🔴 소속도는 "비정 가능성 등급"이지 확정이 아니다. 전역 밀도가 아니라 seed 유도 국소 분석이며 판단은 연구자 몫.',
+      inputSchema: {
+        seed: z.string().min(1).describe('기준 지명(한자)'),
+        scope: z
+          .enum(['article', 'paragraph'])
+          .optional()
+          .describe('공기 범위: article=기사(기본), paragraph=문단'),
+        simMin: z.number().positive().optional().describe('soft eps(이웃 유사도 하한)'),
+        muMin: z.number().positive().optional().describe('코어 밀도 하한'),
+        minCooc: z.number().int().positive().optional().describe('엣지 컷(최소 공기 수)'),
+        limit: z.number().int().positive().max(1000).optional().describe('seed 이웃(U) 상한'),
+      },
+    },
+    async ({ seed, scope, simMin, muMin, minCooc, limit }) =>
+      jsonResult(await corpus.placeClusters(seed, { scope, simMin, muMin, minCooc, limit })),
   );
 }

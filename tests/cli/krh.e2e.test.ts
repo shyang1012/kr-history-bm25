@@ -38,4 +38,11 @@ describe.skipIf(!ready)('krh CLI e2e (동봉 코퍼스)', () => {
     const out = krh('cluster', '遼東', '--neighbor-type', '지명', '--limit', '8');
     expect(out).toContain('간체');
   });
+
+  it('place-clusters — seed 국소 퍼지 군집 stdout(seed·군집·[C…])', () => {
+    const out = krh('place-clusters', '樂浪', '--scope', 'article');
+    expect(out).toContain('seed=樂浪');
+    expect(out).toContain('군집=');
+    expect(out).toMatch(/\[C\d+\]/); // 군집 라벨
+  });
 });

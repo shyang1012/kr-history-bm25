@@ -100,6 +100,42 @@ export interface VariantSearchResult {
   hits: SearchHit[];
 }
 
+/** 퍼지 군집 멤버 1건(소속도 병기) */
+export interface FuzzyMember {
+  /** 표기(한자·정자, 불변) */
+  surface: string;
+  /** 개체 유형 */
+  type: string;
+  /** 이 군집에 대한 소속도(코어=1, 경계=분할) */
+  membership: number;
+  /** 간자체 병기(정자와 다를 때만·지도 대조용) */
+  simplified?: string;
+}
+
+/** 퍼지 지명 군집 1건 */
+export interface FuzzyPlaceCluster {
+  /** 군집 id(정렬 canonical) */
+  clusterId: number;
+  /** 소속 멤버(소속도 내림차순·표기 오름차순) */
+  members: FuzzyMember[];
+}
+
+/** seed 유도 국소 퍼지 군집 결과(전역 밀도 아님) */
+export interface PlaceClusterResult {
+  /** 기준 표기(seed) */
+  seed: string;
+  /** 공기 단위 */
+  scope: 'article' | 'paragraph';
+  /** 적용 파라미터(실제값) */
+  params: { simMin: number; muMin: number; minCooc: number; limit: number };
+  /** seed 이웃이 limit로 절단됐는가 */
+  truncated: boolean;
+  /** 퍼지 군집 목록 */
+  clusters: FuzzyPlaceCluster[];
+  /** 노이즈 지명(정렬) */
+  noise: string[];
+}
+
 /** 군집(co-occurrence) 결과 1건 */
 export interface ClusterNeighbor {
   /** 개체 유형 */

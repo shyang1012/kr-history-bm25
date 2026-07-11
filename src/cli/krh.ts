@@ -289,6 +289,58 @@ cli
   );
 
 cli
+  .command(
+    'place-clusters <surface>',
+    'seed 지명의 국소 퍼지 군집(FDBSCAN) — 공기 소속도. 전역 밀도 아님(국소 분석)',
+  )
+  .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
+  .option('--scope <scope>', '공기 범위: article(기본)|paragraph', { default: 'article' })
+  .option('--sim-min <n>', 'soft eps(이웃 유사도 하한)')
+  .option('--mu-min <n>', '코어 밀도 하한')
+  .option('--min-cooc <n>', '엣지 컷(최소 공기 수)')
+  .option('--limit <n>', 'seed 이웃(U) 상한')
+  .action(
+    async (
+      surface: string,
+      opts: {
+        db?: string;
+        scope: string;
+        simMin?: string;
+        muMin?: string;
+        minCooc?: string;
+        limit?: string;
+      },
+    ) => {
+      if (opts.scope !== 'article' && opts.scope !== 'paragraph') {
+        throw new Error(`--scope는 article|paragraph만 지원합니다(입력: ${opts.scope})`);
+      }
+      const db = await openForQuery(opts.db);
+      const r = await db.placeClusters(surface, {
+        scope: opts.scope,
+        simMin: opts.simMin ? Number(opts.simMin) : undefined,
+        muMin: opts.muMin ? Number(opts.muMin) : undefined,
+        minCooc: opts.minCooc ? Number(opts.minCooc) : undefined,
+        limit: opts.limit ? Number(opts.limit) : undefined,
+      });
+      db.close();
+      console.log(
+        `seed=${r.seed} scope=${r.scope} 군집=${r.clusters.length} 노이즈=${r.noise.length}` +
+          `${r.truncated ? ' (이웃 절단됨)' : ''}`,
+      );
+      for (const c of r.clusters) {
+        const line = c.members
+          .map(
+            (m) =>
+              `${m.surface}${m.membership < 1 ? `(${m.membership.toFixed(2)})` : ''}` +
+              `${m.simplified ? `/${m.simplified}` : ''}`,
+          )
+          .join(' ');
+        console.log(`  [C${c.clusterId}] ${line}`);
+      }
+    },
+  );
+
+cli
   .command('place <surface>', '표기 출현 위치 구조화 조회')
   .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
   .option('--type <type>', '개체 유형(지명/이름 등)')

@@ -22,6 +22,14 @@ export {
   type ReadingMatch,
   type ReadingDisplay,
 } from './search/search-by-reading';
+export {
+  fdbscan,
+  type FdbscanParams,
+  type FdbscanResult,
+  type FdbscanMembership,
+} from './search/fdbscan';
+export { placeClusters, type PlaceScope, type PlaceClusterOptions } from './search/place-clusters';
+export type { PlaceClusterResult, FuzzyPlaceCluster, FuzzyMember } from './types';
 export { lookupPlace, type LookupOptions } from './search/lookup-place';
 export { cluster, type ClusterOptions } from './search/cluster';
 export {
