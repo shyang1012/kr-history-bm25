@@ -115,4 +115,14 @@ describe.skipIf(!existsSync(gzPath))('searchHan — 간자체 질의 e2e(동봉 
     expect(hits.some((h) => h.textHan.includes('遼東'))).toBe(true);
     db.close();
   });
+
+  it('cluster 지명 이웃에 간자체가 병기된다(원문 surface는 불변)', async () => {
+    const db = await openBundledDb();
+    const neighbors = await db.cluster('遼東', { neighborType: '지명', limit: 30 });
+    // 遼西 같은 이웃은 간자체(辽西)가 병기되어야 한다(정자 surface 유지 + simplified 별도)
+    const annotated = neighbors.find((n) => n.simplified && n.simplified !== n.surface);
+    expect(annotated).toBeDefined();
+    expect(annotated?.surface).not.toBe(annotated?.simplified);
+    db.close();
+  });
 });

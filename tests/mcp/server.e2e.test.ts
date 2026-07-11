@@ -62,4 +62,42 @@ describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
     await client.close();
     db.close();
   });
+
+  it('search_by_reading — 한글 독음으로 한자를 찾고 대표음·관용을 병기 반환한다', async () => {
+    const db = await openBundledDb({ targetDir: workDir });
+    const server = createMcpServer(db);
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'e2e-reading', version: '0.0.0' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+
+    const res = await client.callTool({ name: 'search_by_reading', arguments: { query: '강감찬' } });
+    const content = res.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text) as {
+      surfaces: string[];
+      matches: { surface: string; readings: { readingType: string; label: string }[] }[];
+    };
+    expect(parsed.surfaces).toContain('姜邯贊');
+    const rep = parsed.matches[0]?.readings.find((r) => r.readingType === 'original');
+    expect(rep?.label).toBe('대표음(사전 표제음)');
+
+    await client.close();
+    db.close();
+  });
+
+  it('search_han — 간자체 질의(辽东)도 정자 원문(遼東)을 반환한다', async () => {
+    const db = await openBundledDb({ targetDir: workDir });
+    const server = createMcpServer(db);
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'e2e-simplified', version: '0.0.0' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+
+    const res = await client.callTool({ name: 'search_han', arguments: { term: '辽东', limit: 5 } });
+    const content = res.content as { type: string; text: string }[];
+    const hits = JSON.parse(content[0].text) as { textHan: string }[];
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.some((h) => h.textHan.includes('遼東'))).toBe(true);
+
+    await client.close();
+    db.close();
+  });
 });

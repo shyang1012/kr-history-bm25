@@ -105,12 +105,15 @@ afterAll(() => {
 });
 
 describe.skipIf(!hasBundle)('searchByReading — e2e(동봉 코퍼스)', () => {
-  it('강감찬 — 관용 독음으로 姜邯贊을 찾아 원문 검색한다', async () => {
+  it('강감찬 — 관용 독음으로 姜邯贊을 찾아 원문 검색한다(간자체 병기 포함)', async () => {
     const db = await openBundledDb({ targetDir: workDir });
     const result = await db.searchByReading('강감찬');
     expect(result.surfaces).toContain('姜邯贊');
     expect(result.hits.length).toBeGreaterThan(0);
-    expect(result.matches.some((m) => m.conventional === '강감찬')).toBe(true);
+    const match = result.matches.find((m) => m.surface === '姜邯贊');
+    expect(match?.conventional).toBe('강감찬');
+    // 원문 surface는 불변, 간자체는 별도 병기(贊 → 赞)
+    expect(match?.simplified).toBe('姜邯赞');
     db.close();
   });
 
