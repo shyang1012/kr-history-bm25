@@ -13,14 +13,34 @@
 
 ## English Overview
 
-`kr-history-bm25` turns Korean historical source texts (from the National Institute of Korean
-History database — 국사편찬위원회 한국사DB) into a self-contained, searchable **SQLite BM25 corpus**.
+`kr-history-bm25` turns the primary sources of **Korean history** — written in **classical Chinese
+(Literary Chinese / Hanja, 漢文)** — into a self-contained, searchable **SQLite BM25 full-text corpus**.
 
-- **Hanja-primary full-text search** (BM25 over classical Chinese, character-unigram tokenized).
-- **Structured place/person index** and **co-occurrence clustering** for toponym identification.
-- **Optional LLM literal-translation** secondary index (Korean) for concept-level discovery.
-- Exposes an **MCP server** (`krh-mcp`) so LLM clients call the corpus as tools.
-- Ships a **pre-built corpus** — `npm i` and query, no XML ingestion needed.
+It covers the core historical texts for **Goguryeo, Baekje, Silla, Gaya, Gojoseon, and Goryeo**
+research and for **historical-geography / toponym (place-name) identification**:
+
+- ***Samguk Sagi*** (三國史記, *History of the Three Kingdoms*)
+- ***Samguk Yusa*** (三國遺事, *Memorabilia of the Three Kingdoms*)
+- ***Goryeosa*** (高麗史, *History of Goryeo*) and ***Goryeosa Jeoryo*** (高麗史節要)
+- **Chinese dynastic-history records on Korea** (한국고대사료집성 / 韓國古代史料集成 — excerpts from
+  the *Book of Han* 漢書, *Book of Later Han* 後漢書, *Records of the Three Kingdoms* 三國志, etc.)
+
+Sourced from the **National Institute of Korean History** database (국사편찬위원회 한국사DB).
+Built for historians and researchers who work directly with the original text — **in any language**:
+
+- **Hanja-primary full-text search** — BM25 over Literary Chinese, character-unigram tokenized, so
+  place names, personal names, offices, and book titles match exactly (the Hanja is the authority).
+- **Simplified ⇄ Traditional Chinese search** (简体/繁體) — query in **Simplified Chinese** (e.g.
+  `辽东`, `汉城`, `乐浪`) and it is normalized to the traditional/original form (`遼東`, `漢城`, `樂浪`)
+  before searching. Results are also annotated with the Simplified form, so a **Chinese-speaking
+  researcher** can work in their own script and paste toponyms straight into Google/Baidu Maps.
+- **Reading (pronunciation) gloss** — search by Korean reading (e.g. `강감찬`) to reach the Hanja
+  (`姜邯贊`); each entity carries a dictionary-headword reading and a conventional reading.
+- **Co-occurrence clustering** — identify a toponym by the *cluster* of neighboring place names,
+  rivers, and mountains recorded together, not by isolated single-name comparison.
+- **Structured place/person index** and **variant-form (異表記) expansion**.
+- **MCP server** (`krh-mcp`) — exposes the corpus to LLM clients (Claude, etc.) as callable tools.
+- **Pre-built corpus** — `npm install` and query; no XML ingestion required.
 
 ```bash
 npm install kr-history-bm25
@@ -30,12 +50,21 @@ npm install kr-history-bm25
 import { openBundledDb } from 'kr-history-bm25';
 
 const db = await openBundledDb();
-const hits = await db.searchHan('浿水', { limit: 10 }); // BM25-ranked passages
+
+await db.searchHan('浿水');                          // BM25 over the Hanja original
+await db.searchHan('辽东');                          // Simplified query → normalized to 遼東
+await db.searchByReading('강감찬');                  // Korean reading → Hanja 姜邯贊 (with readings)
+await db.cluster('遼東', { neighborType: '지명' });  // neighboring toponyms (+ Simplified forms)
 db.close();
 ```
 
-The design principle: **the hanja source is always the authority.** Translations are a secondary
-discovery layer, never the basis of a conclusion. See the methodology section below.
+The design principle: **the Hanja source is always the authority.** Translations, readings, and
+Simplified-Chinese forms are secondary discovery/access layers — never the basis of a conclusion.
+The tool surfaces the evidence; the researcher draws the conclusions. See the methodology below.
+
+*Keywords: Korean history, classical Chinese, Literary Chinese, Hanja, full-text search, BM25,
+historical geography, toponym identification, Samguk Sagi, Samguk Yusa, Goryeosa, Goguryeo, Baekje,
+Silla, Gojoseon, Lelang/Nakrang (樂浪), Liaodong (遼東), Simplified/Traditional Chinese, MCP.*
 
 ---
 
