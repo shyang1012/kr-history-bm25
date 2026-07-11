@@ -18,6 +18,7 @@ import type {
   ClusterNeighbor,
   VariantSearchResult,
 } from '../types';
+import type { ReadingSearchResult } from '../search/search-by-reading';
 import { registerTools } from './tools';
 import { registerGuidePrompt } from './guide';
 
@@ -33,10 +34,11 @@ export interface McpCorpus {
   lookupPlace(surface: string, options?: LookupOptions): Promise<PlaceOccurrence[]>;
   cluster(surface: string, options?: ClusterOptions): Promise<ClusterNeighbor[]>;
   withVariants(surface: string, options?: SearchHanOptions): Promise<VariantSearchResult>;
+  searchByReading(query: string, options?: SearchHanOptions): Promise<ReadingSearchResult>;
 }
 
 /**
- * 코퍼스 위에 도구 5종 + 비정 가이드 prompt를 등록한 McpServer를 만든다.
+ * 코퍼스 위에 도구 6종 + 비정 가이드 prompt를 등록한 McpServer를 만든다.
  * @param corpus - 검색·군집·조회 파사드
  * @returns 연결 준비된 McpServer(transport는 호출자가 연결)
  */

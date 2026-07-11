@@ -209,12 +209,26 @@ cli
 cli
   .command('search <term>', '한자(주) 또는 직역(보조) BM25 검색')
   .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
-  .option('--index <index>', 'han|ko', { default: 'han' })
+  .option('--index <index>', 'han|ko|reading', { default: 'han' })
   .option('--limit <n>', '최대 결과 수', { default: '20' })
   .action(async (term: string, opts: { db?: string; index: string; limit: string }) => {
     const db = await openForQuery(opts.db);
     const limit = Number(opts.limit);
-    if (opts.index === 'ko') {
+    if (opts.index === 'reading') {
+      const result = await db.searchByReading(term, { limit });
+      for (const m of result.matches) {
+        const rep = m.original ?? m.surface;
+        const annot = m.conventional && m.conventional !== m.original ? `〔관용 ${m.conventional}〕` : '';
+        console.log(`  ${rep}(${m.surface})${annot}  [${m.type}]`);
+      }
+      if (result.surfaces.length > 0) {
+        console.log(`(표기: ${result.surfaces.join(' ')})`);
+      }
+      for (const h of result.hits) {
+        console.log(`[${h.corpusCode}] ${h.nodeId} ${h.score.toFixed(2)}  ${truncate(h.textHan)}`);
+      }
+      console.log(`(${result.hits.length}건)`);
+    } else if (opts.index === 'ko') {
       const hits = await db.searchKo(term, { limit });
       for (const h of hits) {
         console.log(

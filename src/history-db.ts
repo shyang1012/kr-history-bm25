@@ -38,6 +38,7 @@ import { searchKo, type SearchKoOptions } from './search/search-ko';
 import { lookupPlace, type LookupOptions } from './search/lookup-place';
 import { cluster, type ClusterOptions } from './search/cluster';
 import { withVariants, addVariantGroup, type VariantMemberSpec } from './search/variants';
+import { searchByReading, type ReadingSearchResult } from './search/search-by-reading';
 import type {
   SearchHit,
   KoSearchHit,
@@ -93,6 +94,11 @@ export class HistoryDb {
   /** 직역(보조) BM25 검색 */
   searchKo(term: string, options?: SearchKoOptions): Promise<KoSearchHit[]> {
     return searchKo(this.conn.client, term, options);
+  }
+
+  /** reading-aware 검색 — 한글 독음으로 한자 표기를 찾아 원문 병합 검색(대표음·관용 병기) */
+  searchByReading(query: string, options?: SearchHanOptions): Promise<ReadingSearchResult> {
+    return searchByReading(this.conn.client, query, options);
   }
 
   /** 구조화 색인 조회(표기 출현 위치) */

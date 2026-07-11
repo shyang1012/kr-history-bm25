@@ -46,6 +46,24 @@ function makeStub(): { corpus: McpCorpus; calls: Record<string, unknown> } {
       calls.withVariants = { surface, options };
       return { surfaces: [surface, '홀본'], hits: [] };
     },
+    searchByReading: async (query, options) => {
+      calls.searchByReading = { query, options };
+      return {
+        query,
+        matches: [
+          {
+            entityId: 1,
+            surface: '姜邯贊',
+            type: '이름',
+            original: '강한찬',
+            conventional: '강감찬',
+            originalSource: 'synth',
+          },
+        ],
+        surfaces: ['姜邯贊'],
+        hits: [],
+      };
+    },
   };
   return { corpus, calls };
 }
@@ -64,12 +82,19 @@ function firstText(result: { content?: unknown }): string {
 }
 
 describe('MCP tools', () => {
-  it('도구 5종이 등록된다', async () => {
+  it('도구 6종이 등록된다', async () => {
     const { corpus } = makeStub();
     const client = await connect(corpus);
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
-    expect(names).toEqual(['cluster', 'lookup_place', 'search_han', 'search_ko', 'with_variants']);
+    expect(names).toEqual([
+      'cluster',
+      'lookup_place',
+      'search_by_reading',
+      'search_han',
+      'search_ko',
+      'with_variants',
+    ]);
     await client.close();
   });
 
@@ -83,6 +108,28 @@ describe('MCP tools', () => {
     const parsed = JSON.parse(firstText(res)) as { textHan: string }[];
     expect(parsed[0].textHan).toContain('浿水');
     expect(calls.searchHan).toEqual({ term: '浿水', options: { limit: 5, corpusCode: 'sg' } });
+    await client.close();
+  });
+
+  it('search_by_reading은 대표음·관용을 displayRole·label과 함께 반환한다', async () => {
+    const { corpus, calls } = makeStub();
+    const client = await connect(corpus);
+    const res = await client.callTool({
+      name: 'search_by_reading',
+      arguments: { query: '강감찬' },
+    });
+    const parsed = JSON.parse(firstText(res)) as {
+      matches: {
+        surface: string;
+        readings: { reading: string; readingType: string; displayRole: string; label: string }[];
+      }[];
+    };
+    expect(parsed.matches[0].surface).toBe('姜邯贊');
+    const rep = parsed.matches[0].readings.find((r) => r.readingType === 'original');
+    const conv = parsed.matches[0].readings.find((r) => r.readingType === 'conventional');
+    expect(rep).toMatchObject({ reading: '강한찬', displayRole: 'dictionary_headword', label: '대표음(사전 표제음)' });
+    expect(conv).toMatchObject({ reading: '강감찬', displayRole: 'conventional_reading', label: '관용 독음' });
+    expect(calls.searchByReading).toEqual({ query: '강감찬', options: { limit: undefined, corpusCode: undefined } });
     await client.close();
   });
 

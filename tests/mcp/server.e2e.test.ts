@@ -30,7 +30,7 @@ afterAll(() => {
 });
 
 describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
-  it('도구 5종을 노출하고 search_han이 실제 결과를 반환한다', async () => {
+  it('도구 6종을 노출하고 search_han이 실제 결과를 반환한다', async () => {
     const db = await openBundledDb({ targetDir: workDir });
     const server = createMcpServer(db);
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -41,6 +41,7 @@ describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
     expect(tools.map((t) => t.name).sort()).toEqual([
       'cluster',
       'lookup_place',
+      'search_by_reading',
       'search_han',
       'search_ko',
       'with_variants',
