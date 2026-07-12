@@ -4,11 +4,12 @@
  * @File: krh.ts
  * @Description: krh CLI 엔트리. ingest/translate/search/cluster/place 커맨드를 라이브러리 파사드에 배선한다.
  * @Author: shyang
- * @LastModified: 2026-07-11
+ * @LastModified: 2026-07-12
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { cac } from 'cac';
+import { readPackageVersion } from '../version';
 import { openHistoryDb, type HistoryDb } from '../history-db';
 import { openBundledDb } from '../bundled-db';
 import { resolveQueryDbSource } from './resolve-db';
@@ -377,7 +378,7 @@ cli
   });
 
 cli.help();
-cli.version('0.2.1');
+cli.version(readPackageVersion());
 
 async function main(): Promise<void> {
   cli.parse(process.argv, { run: false });

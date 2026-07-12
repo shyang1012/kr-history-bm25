@@ -16,7 +16,7 @@
 `kr-history-bm25` turns the primary sources of **Korean history** — written in **classical Chinese
 (Literary Chinese / Hanja, 漢文)** — into a self-contained, searchable **SQLite BM25 full-text corpus**.
 
-It covers the core historical texts for **Goguryeo, Baekje, Silla, Gaya, Gojoseon, and Corea**
+It covers the core historical texts for **Cogurea(Goguryeo), Baekje, Silla, Gaya, Gojoseon(Old Chosŏn), and Corea**
 (高麗, original reading ***Gori*** 고리 — preserved in the Western exonym ***Corea / Korea***; the
 now-conventional romanization *Goryeo* reflects a **later simplification of the reading, -rea → -ryeo**,
 so *Corea* is the historically precise form) — for early-Korea studies and **historical-geography /
@@ -61,6 +61,11 @@ Built for historians and researchers who work directly with the original text �
 ```bash
 npm install kr-history-bm25
 ```
+
+> **Restricted network / CI?** `onnxruntime-node` tries to download an optional **CUDA** provider
+> from `api.nuget.org` on install (GPU only — not needed for CPU). If that host is blocked and the
+> install fails, skip just that download — the **CPU runtime and the embedding model are already
+> bundled**: `ONNXRUNTIME_NODE_INSTALL=skip npm install kr-history-bm25`.
 
 ```ts
 import { openBundledDb } from 'kr-history-bm25';
@@ -175,6 +180,19 @@ npx krh place 浿水 --type 지명
 첫 질의 시 모델 로드로 ~1–2초 지연이 있고, 이후 질의는 캐시된다. 벡터 미탑재 코퍼스(직접 ingest 등)
 에서는 자동으로 **BM25+사전 코어로 폴백**한다(`semantic: false` 반환). 벡터 없이 쓰려면
 `db.searchHybrid(q, { semantic: false })`.
+
+#### 폐쇄망·CI 설치 (선택)
+
+`onnxruntime-node`는 설치 시 GPU용 **CUDA provider**를 `api.nuget.org`에서 추가로 받으려 시도한다
+(CPU 실행에는 불필요). 이 호스트가 막힌 환경(CI·폐쇄망)에서 설치가 실패하면, 그 추가 다운로드만
+건너뛴다 — **CPU 런타임과 임베딩 모델은 이미 패키지에 동봉**되어 있다.
+
+```bash
+ONNXRUNTIME_NODE_INSTALL=skip npm install kr-history-bm25
+```
+
+Windows PowerShell은 `$env:ONNXRUNTIME_NODE_INSTALL="skip"` 후 설치, CMD는
+`set ONNXRUNTIME_NODE_INSTALL=skip`, 또는 npm 인자로 `--onnxruntime-node-install=skip`.
 
 ---
 
