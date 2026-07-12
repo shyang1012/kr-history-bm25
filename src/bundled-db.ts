@@ -8,7 +8,7 @@
  */
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { tmpdir } from 'node:os';
 import { HistoryDb } from './history-db';
@@ -34,6 +34,22 @@ function versionPath(dbPath: string): string {
 function extractedVersion(dbPath: string): string | null {
   const vp = versionPath(dbPath);
   return existsSync(vp) ? readFileSync(vp, 'utf8').trim() : null;
+}
+
+/** temp 파일 고유화 카운터(동일 프로세스 내 다중 호출 대비) */
+let tmpCounter = 0;
+
+/**
+ * 압축 해제본을 원자적으로 쓴다 — 고유 temp에 쓴 뒤 rename(동시 추출 경합 시 부분쓰기·손상 방지, POSIX 원자적).
+ * 완료 마커는 DB 파일이 온전해진 뒤(rename 후) 마지막에 기록한다.
+ * @param dbPath - 추출 대상 경로
+ * @param data - 압축 해제된 DB 바이트
+ */
+function atomicExtract(dbPath: string, data: Buffer): void {
+  const tmp = `${dbPath}.tmp-${process.pid}-${(tmpCounter += 1)}`;
+  writeFileSync(tmp, data);
+  renameSync(tmp, dbPath);
+  writeFileSync(versionPath(dbPath), BUNDLE_VERSION);
 }
 
 /**
@@ -81,16 +97,14 @@ export async function openBundledDb(options: OpenBundledOptions = {}): Promise<H
     mkdirSync(targetDir, { recursive: true });
     const decompressed = gunzipSync(readFileSync(gzPath));
     try {
-      writeFileSync(dbPath, decompressed);
-      writeFileSync(versionPath(dbPath), BUNDLE_VERSION);
+      atomicExtract(dbPath, decompressed);
     } catch {
       // data/ 쓰기 불가(읽기전용 설치 등) → OS 임시 폴더로 폴백
       const fallbackDir = join(tmpdir(), 'kr-history-bm25');
       mkdirSync(fallbackDir, { recursive: true });
       dbPath = join(fallbackDir, DB_NAME);
       if (!existsSync(dbPath) || extractedVersion(dbPath) !== BUNDLE_VERSION) {
-        writeFileSync(dbPath, decompressed);
-        writeFileSync(versionPath(dbPath), BUNDLE_VERSION);
+        atomicExtract(dbPath, decompressed);
       }
     }
   }

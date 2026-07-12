@@ -82,6 +82,8 @@ export class HistoryDb {
    */
   static async open(path: string): Promise<HistoryDb> {
     const conn = createDbConnection(path);
+    // 락 시 즉시 실패 대신 대기(다중 프로세스 공유 접근 방어 — SQLITE_BUSY 완화)
+    await conn.client.execute('PRAGMA busy_timeout = 5000');
     await runMigrations(conn.client);
     return new HistoryDb(conn);
   }
