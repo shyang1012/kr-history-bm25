@@ -336,7 +336,20 @@ krh <command> [options]     # 전역 옵션: --db <path> (기본 KRH_DB 또는 h
 동봉 코퍼스를 **MCP(Model Context Protocol) 도구로 LLM 클라이언트에 직접 노출**한다(stdio).
 Claude 등에서 검색·군집·조회를 도구로 호출하고, 비정 방법론 가이드를 prompt로 받는다.
 
-**클라이언트 등록 예** (Claude Desktop/Code 등의 MCP 설정):
+**자동 등록** (권장) — Claude Code·Codex·Gemini에 한 명령으로:
+
+```bash
+krh mcp install                 # claude·codex·gemini 모두 자동 등록
+krh mcp install claude          # 특정 클라이언트만 (claude|codex|gemini)
+krh mcp install --print         # 실행하지 않고 등록 명령/스니펫만 출력
+```
+
+- 옵션: `--scope user`(기본)/`local`/`project`, `--name <이름>`, `--db <경로>`(커스텀 코퍼스=`KRH_DB`), `--global`(전역 `krh-mcp` bin 사용, 미지정 시 `npx` 실행), `--force`(기존 등록 remove 후 재등록=갱신).
+- Claude/Codex는 각 CLI의 `mcp add`에 위임, Gemini는 `~/.gemini/settings.json`에 병합한다(기존 설정 보존).
+- 🔴 **실행 중인 claude 세션 안이 아니라 별도 터미널**에서 실행하세요(중첩 호출 시 인자 파싱이 꼬입니다).
+- 🔴 Windows PowerShell에서 `claude mcp add`를 **직접** 치면 `.ps1` shim이 `-s`를 삼켜 실패할 수 있으니, 수동 명령 대신 `krh mcp install`(내부적으로 `.cmd` 경로 사용)을 쓰세요. 이미 등록돼 있으면 `--force`로 갱신.
+
+**수동 등록** (Claude Desktop 등 MCP 설정을 직접 편집):
 
 ```json
 {
@@ -348,6 +361,7 @@ Claude 등에서 검색·군집·조회를 도구로 호출하고, 비정 방법
 
 전역 설치했다면 `krh-mcp`, 아니면 `npx -y -p kr-history-bm25 krh-mcp`. `KRH_DB` 환경변수를 주면
 동봉본 대신 지정 코퍼스를 연다.
+Windows의 Claude Desktop 등 일부 호스트는 `npx`를 직접 못 띄우니 `"command": "cmd"`, `"args": ["/d","/s","/c","npx","-y","-p","kr-history-bm25","krh-mcp"]` 형태로 감싼다(`krh mcp install`은 이를 자동 처리).
 
 **도구 8종** (파사드에 1:1, JSON 반환):
 

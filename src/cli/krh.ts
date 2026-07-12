@@ -14,7 +14,9 @@ import { openHistoryDb, type HistoryDb } from '../history-db';
 import { openBundledDb } from '../bundled-db';
 import { resolveQueryDbSource } from './resolve-db';
 import { createProvider, type ProviderName } from '../translate/create-provider';
+import type { TranslationProvider } from '../translate/provider';
 import type { BatchTranslationResult } from '../translate/batch';
+import { runInstall, type InstallScope } from '../mcp/install';
 
 /** 쓰기 계열(ingest/translate/reading) 기본 DB 경로 */
 const DEFAULT_DB = process.env.KRH_DB ?? 'history.sqlite';
@@ -39,6 +41,25 @@ const DEFAULT_BATCH_PROVIDER = 'codex';
 /** 텍스트를 지정 길이로 자른다 */
 function truncate(text: string, max = 60): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/**
+ * provider 인스턴스를 만들되, 자격증명 부재로 실패하면 어떤 env가 필요한지 안내로 감싼다.
+ * (help의 세 provider가 모두 "조건부"라 out-of-box 실패 시 원인을 즉시 드러낸다.)
+ * @param name - provider 이름
+ * @returns TranslationProvider 인스턴스
+ */
+function createProviderOrGuide(name: string): TranslationProvider {
+  try {
+    return createProvider(name as ProviderName);
+  } catch (e) {
+    throw new Error(
+      `provider '${name}' 초기화 실패: ${(e as Error).message}\n` +
+        `필요 env — claude: ANTHROPIC_API_KEY(+ @anthropic-ai/sdk) / ` +
+        `cloudflare: CF_ACCOUNT_ID + CF_API_TOKEN / codex: OPENAI_API_KEY(OpenAI 호환 REST). ` +
+        `다른 provider는 --provider 로 선택하세요.`,
+    );
+  }
 }
 
 /**
@@ -79,12 +100,16 @@ cli
 cli
   .command('translate', '미완 본문을 증분 직역(보조 코퍼스)')
   .option('--db <path>', 'SQLite 경로', { default: DEFAULT_DB })
-  .option('--provider <name>', 'claude|cloudflare|codex', { default: 'claude' })
+  .option(
+    '--provider <name>',
+    'claude|cloudflare|codex — 각기 API 키 필요(codex=OpenAI 호환 REST, OPENAI_API_KEY)',
+    { default: 'claude' },
+  )
   .option('--limit <n>', '이번 실행 최대 처리 수')
   .option('--corpus <code>', '코퍼스 코드 제한')
   .action(async (opts: { db: string; provider: string; limit?: string; corpus?: string }) => {
     const db = await openHistoryDb(opts.db);
-    const provider = createProvider(opts.provider as ProviderName);
+    const provider = createProviderOrGuide(opts.provider);
     const stats = await db.translate({
       provider,
       limit: opts.limit ? Number(opts.limit) : undefined,
@@ -376,6 +401,48 @@ cli
     }
     console.log(`(${occ.length}건)`);
   });
+
+cli
+  .command(
+    'mcp <action> [client]',
+    'MCP 서버를 LLM 클라이언트에 자동 등록(action=install / client=claude|codex|gemini|all)',
+  )
+  .option('--scope <scope>', '등록 범위: user(기본)|local|project', { default: 'user' })
+  .option('--name <name>', '등록 이름', { default: 'kr-history' })
+  .option('--db <path>', '커스텀 코퍼스 경로(KRH_DB로 주입; 미지정 시 동봉본)')
+  .option('--global', '전역 설치된 krh-mcp bin 사용(미지정 시 npx 실행)')
+  .option('--print', '실행하지 않고 등록 명령/스니펫만 출력')
+  .option('--force', '기존 등록을 remove 후 재등록(갱신)')
+  .action(
+    (
+      action: string,
+      client: string | undefined,
+      opts: {
+        scope: string;
+        name: string;
+        db?: string;
+        global?: boolean;
+        print?: boolean;
+        force?: boolean;
+      },
+    ) => {
+      if (action !== 'install') {
+        throw new Error(`알 수 없는 mcp action: ${action} (지원: install)`);
+      }
+      const { scope } = opts;
+      if (scope !== 'user' && scope !== 'local' && scope !== 'project') {
+        throw new Error(`--scope는 user|local|project만 지원합니다(입력: ${scope})`);
+      }
+      runInstall(client ?? 'all', {
+        name: opts.name,
+        scope: scope as InstallScope,
+        db: opts.db,
+        global: opts.global,
+        print: opts.print,
+        force: opts.force,
+      });
+    },
+  );
 
 cli.help();
 cli.version(readPackageVersion());

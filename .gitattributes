@@ -1,0 +1,19 @@
+# 저장소 개행 정규화 — 전 플랫폼 LF 고정 (CRLF/prettier endOfLine=lf 마찰 근본해결)
+# krh-8ex [shyang 2026-07-12]
+* text=auto eol=lf
+
+# 바이너리 — 정규화·개행변환 제외
+*.gz      binary
+*.sqlite  binary
+*.sqlite3 binary
+*.onnx    binary
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.pdf     binary
+*.zip     binary
+*.woff    binary
+*.woff2   binary
+*.ttf     binary

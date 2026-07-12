@@ -5,7 +5,7 @@
  *               헤드라인 흐름(독음 검색 병기·간자체 질의 정규화·지명 간자체 병기)을 실제 명령으로 확인한다.
  *               동봉 코퍼스와 dist 빌드가 있을 때만 실행한다.
  * @Author: shyang
- * @LastModified: 2026-07-11
+ * @LastModified: 2026-07-12
  */
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
@@ -60,6 +60,22 @@ describe.skipIf(!ready)('krh CLI e2e (동봉 코퍼스)', () => {
     expect(out).toContain('seed=樂浪');
     expect(out).toContain('군집=');
     expect(out).toMatch(/\[C\d+\]/); // 군집 라벨
+  });
+});
+
+describe.skipIf(!existsSync(cli))('krh CLI e2e — mcp install --print(부작용 없음)', () => {
+  it('all --print — claude/codex 등록 명령 + gemini 스니펫 출력', () => {
+    const out = krh('mcp', 'install', 'all', '--print');
+    expect(out).toContain('claude mcp add kr-history');
+    expect(out).toContain('codex mcp add kr-history');
+    expect(out).toContain('"mcpServers"'); // gemini settings.json 스니펫
+    expect(out).toContain('krh-mcp'); // 서버 bin
+  });
+
+  it('claude --print — -s scope + krh-mcp invocation', () => {
+    const out = krh('mcp', 'install', 'claude', '--print');
+    expect(out).toContain('claude mcp add kr-history -s user --');
+    expect(out).toContain('krh-mcp');
   });
 });
 
