@@ -9,9 +9,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
-
-/** 자기 패키지 식별자(walk-up 중 중첩 dependency의 package.json 오탐 방지) */
-const PACKAGE_NAME = 'kr-history-bm25';
+import { PACKAGE_NAME } from './constants';
 
 /** 1회 read 후 캐시 */
 let cached: string | undefined;

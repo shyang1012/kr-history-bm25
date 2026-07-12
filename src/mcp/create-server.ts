@@ -8,6 +8,7 @@
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { readPackageVersion } from '../version';
+import { MCP_SERVER_NAME } from '../constants';
 import type { SearchHanOptions } from '../search/search-han';
 import type { SearchKoOptions } from '../search/search-ko';
 import type { LookupOptions } from '../search/lookup-place';
@@ -47,7 +48,7 @@ export interface McpCorpus {
  * @returns 연결 준비된 McpServer(transport는 호출자가 연결)
  */
 export function createMcpServer(corpus: McpCorpus): McpServer {
-  const server = new McpServer({ name: 'kr-history-bm25', version: readPackageVersion() });
+  const server = new McpServer({ name: MCP_SERVER_NAME, version: readPackageVersion() });
   registerTools(server, corpus);
   registerGuidePrompt(server);
   return server;
