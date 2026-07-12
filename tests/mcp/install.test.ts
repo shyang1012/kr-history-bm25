@@ -9,9 +9,11 @@ import { describe, it, expect } from 'vitest';
 import {
   buildServerInvocation,
   buildClientCommand,
+  buildRemoveCommand,
   buildGeminiConfig,
   mergeGeminiSettings,
   chooseLauncher,
+  classifyDelegatedResult,
 } from '../../src/mcp/install';
 import { PACKAGE_NAME, MCP_BIN } from '../../src/constants';
 
@@ -92,6 +94,70 @@ describe('buildClientCommand', () => {
     expect(claude).toContain('KRH_DB=/x/c.sqlite');
     expect(codex).toContain('--env');
     expect(codex).toContain('KRH_DB=/x/c.sqlite');
+  });
+});
+
+describe('buildRemoveCommand', () => {
+  it('claude — mcp remove -s scope', () => {
+    expect(buildRemoveCommand('claude', 'kr-history', 'user')).toEqual({
+      cli: 'claude',
+      argv: ['mcp', 'remove', 'kr-history', '-s', 'user'],
+    });
+  });
+
+  it('codex — scope 플래그 없음', () => {
+    expect(buildRemoveCommand('codex', 'kr-history', 'user')).toEqual({
+      cli: 'codex',
+      argv: ['mcp', 'remove', 'kr-history'],
+    });
+  });
+});
+
+describe('classifyDelegatedResult', () => {
+  it('status 0 → ok', () => {
+    expect(classifyDelegatedResult({ status: 0, signal: null, output: '' })).toBe('ok');
+  });
+
+  it('already exists 메시지 → already-exists', () => {
+    expect(
+      classifyDelegatedResult({
+        status: 1,
+        signal: null,
+        output: 'MCP server kr-history already exists in user config',
+      }),
+    ).toBe('already-exists');
+  });
+
+  it('ENOENT → not-installed', () => {
+    expect(
+      classifyDelegatedResult({
+        error: { code: 'ENOENT' },
+        status: null,
+        signal: null,
+        output: '',
+      }),
+    ).toBe('not-installed');
+  });
+
+  it('기타 error → launch-error:CODE', () => {
+    expect(
+      classifyDelegatedResult({
+        error: { code: 'EINVAL' },
+        status: null,
+        signal: null,
+        output: '',
+      }),
+    ).toBe('launch-error:EINVAL');
+  });
+
+  it('signal → signal:NAME', () => {
+    expect(classifyDelegatedResult({ status: null, signal: 'SIGTERM', output: '' })).toBe(
+      'signal:SIGTERM',
+    );
+  });
+
+  it('그 외 non-zero → exit:N', () => {
+    expect(classifyDelegatedResult({ status: 2, signal: null, output: 'boom' })).toBe('exit:2');
   });
 });
 

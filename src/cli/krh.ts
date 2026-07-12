@@ -412,11 +412,19 @@ cli
   .option('--db <path>', '커스텀 코퍼스 경로(KRH_DB로 주입; 미지정 시 동봉본)')
   .option('--global', '전역 설치된 krh-mcp bin 사용(미지정 시 npx 실행)')
   .option('--print', '실행하지 않고 등록 명령/스니펫만 출력')
+  .option('--force', '기존 등록을 remove 후 재등록(갱신)')
   .action(
     (
       action: string,
       client: string | undefined,
-      opts: { scope: string; name: string; db?: string; global?: boolean; print?: boolean },
+      opts: {
+        scope: string;
+        name: string;
+        db?: string;
+        global?: boolean;
+        print?: boolean;
+        force?: boolean;
+      },
     ) => {
       if (action !== 'install') {
         throw new Error(`알 수 없는 mcp action: ${action} (지원: install)`);
@@ -431,6 +439,7 @@ cli
         db: opts.db,
         global: opts.global,
         print: opts.print,
+        force: opts.force,
       });
     },
   );

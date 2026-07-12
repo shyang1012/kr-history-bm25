@@ -99,6 +99,24 @@ export function buildClientCommand(
 }
 
 /**
+ * Claude/Codex의 `mcp remove` argv를 만든다(순수 함수, --force 재등록용).
+ * @param client - claude | codex
+ * @param name - 제거할 등록 이름
+ * @param scope - 범위(claude만 -s 사용)
+ * @returns 호출할 CLI 이름과 argv
+ */
+export function buildRemoveCommand(
+  client: DelegatedClient,
+  name: string,
+  scope: InstallScope,
+): { cli: string; argv: string[] } {
+  if (client === 'claude') {
+    return { cli: 'claude', argv: ['mcp', 'remove', name, '-s', scope] };
+  }
+  return { cli: 'codex', argv: ['mcp', 'remove', name] };
+}
+
+/**
  * Gemini settings.json의 `mcpServers[name]`에 넣을 config 조각을 만든다(순수 함수).
  * @param invocation - buildServerInvocation 결과
  * @returns command/args(+env) 객체
@@ -168,33 +186,72 @@ export function resolveLauncher(
   return chooseLauncher(findCandidates(cli, platform), platform);
 }
 
-/** 위임 실행 결과 */
-export type RunResult = { ok: true } | { ok: false; reason: string };
+/** 위임 실행 판정 — 정상/이미 존재/미설치/기타 실패 사유 */
+export type DelegatedOutcome = 'ok' | 'already-exists' | 'not-installed' | string;
 
-/** Claude/Codex `mcp add`를 실제 실행하고 반환을 원인별로 분기한다(F-03) */
-function runDelegated(cli: string, argv: string[], platform: NodeJS.Platform): RunResult {
-  const launcher = resolveLauncher(cli, platform);
-  if (!launcher) {
-    return { ok: false, reason: 'not-installed' };
-  }
-  const r = spawnSync(launcher.command, [...launcher.prefixArgs, ...argv], {
-    stdio: 'inherit',
-    shell: false,
-  });
+/**
+ * spawnSync 반환을 원인별로 분류한다(순수 함수, F-03 + already-exists 구분).
+ * @param r - error.code·status·signal·output(stdout+stderr 합본)
+ * @returns 판정 결과
+ */
+export function classifyDelegatedResult(r: {
+  error?: { code?: string };
+  status: number | null;
+  signal: string | null;
+  output: string;
+}): DelegatedOutcome {
   if (r.error) {
-    const code = (r.error as NodeJS.ErrnoException).code;
-    if (code === 'ENOENT') {
-      return { ok: false, reason: 'not-installed' };
-    }
-    return { ok: false, reason: `launch-error:${code ?? 'unknown'}` };
+    const code = r.error.code;
+    return code === 'ENOENT' ? 'not-installed' : `launch-error:${code ?? 'unknown'}`;
   }
   if (r.signal) {
-    return { ok: false, reason: `signal:${r.signal}` };
+    return `signal:${r.signal}`;
   }
-  if (typeof r.status === 'number' && r.status !== 0) {
-    return { ok: false, reason: `exit:${r.status}` };
+  if (r.status === 0) {
+    return 'ok';
   }
-  return { ok: true };
+  if (/already exists/i.test(r.output)) {
+    return 'already-exists';
+  }
+  return `exit:${r.status ?? 'unknown'}`;
+}
+
+/** Claude/Codex CLI를 pipe로 실행하고, 캡처 출력을 재출력한 뒤 분류한다 */
+function runDelegated(cli: string, argv: string[], platform: NodeJS.Platform): DelegatedOutcome {
+  const launcher = resolveLauncher(cli, platform);
+  if (!launcher) {
+    return 'not-installed';
+  }
+  const r = spawnSync(launcher.command, [...launcher.prefixArgs, ...argv], {
+    encoding: 'utf8',
+    shell: false,
+  });
+  const stdout = r.stdout ?? '';
+  const stderr = r.stderr ?? '';
+  if (stdout) {
+    process.stdout.write(stdout);
+  }
+  if (stderr) {
+    process.stderr.write(stderr);
+  }
+  return classifyDelegatedResult({
+    error: r.error as NodeJS.ErrnoException | undefined,
+    status: r.status,
+    signal: r.signal,
+    output: `${stdout}\n${stderr}`,
+  });
+}
+
+/** Claude/Codex `mcp remove`를 조용히 실행한다(--force 재등록 전 정리, 결과 무시) */
+function runRemove(cli: string, argv: string[], platform: NodeJS.Platform): void {
+  const launcher = resolveLauncher(cli, platform);
+  if (!launcher) {
+    return;
+  }
+  spawnSync(launcher.command, [...launcher.prefixArgs, ...argv], {
+    encoding: 'utf8',
+    shell: false,
+  });
 }
 
 /** Gemini settings.json 경로(scope별) */
@@ -251,6 +308,8 @@ export interface InstallCliOptions {
   db?: string;
   global?: boolean;
   print?: boolean;
+  /** 기존 등록을 remove 후 재등록(갱신) */
+  force?: boolean;
   platform?: NodeJS.Platform;
 }
 
@@ -304,13 +363,22 @@ export function runInstall(clientArg: string, opts: InstallCliOptions): void {
       console.log(`# ${client}\n${cli} ${argv.join(' ')}`);
       continue;
     }
-    const r = runDelegated(cli, argv, platform);
-    if (r.ok) {
+    if (opts.force) {
+      const rm = buildRemoveCommand(client, opts.name, opts.scope);
+      runRemove(rm.cli, rm.argv, platform); // 없으면 무시 — 재등록 위한 정리
+    }
+    const outcome = runDelegated(cli, argv, platform);
+    if (outcome === 'ok') {
       console.log(`[${client}] 등록 완료`);
-    } else if (r.reason === 'not-installed') {
+    } else if (outcome === 'already-exists') {
+      console.log(
+        `[${client}] 이미 등록됨(변경 없음) — 갱신하려면 --force, 또는 별도 창에서 '${cli} mcp remove ${opts.name}' 후 재실행.\n` +
+          `  (PowerShell 수동 '${cli} mcp add …'는 .ps1 shim 문제로 -s가 안 먹힐 수 있으니 --force 권장)`,
+      );
+    } else if (outcome === 'not-installed') {
       console.log(`[${client}] CLI 미설치 — 수동 실행:\n  ${cli} ${argv.join(' ')}`);
     } else {
-      console.error(`[${client}] 실패(${r.reason}) — 수동 실행:\n  ${cli} ${argv.join(' ')}`);
+      console.error(`[${client}] 실패(${outcome}) — 수동 실행:\n  ${cli} ${argv.join(' ')}`);
     }
   }
 }

@@ -344,9 +344,10 @@ krh mcp install claude          # 특정 클라이언트만 (claude|codex|gemini
 krh mcp install --print         # 실행하지 않고 등록 명령/스니펫만 출력
 ```
 
-- 옵션: `--scope user`(기본)/`local`/`project`, `--name <이름>`, `--db <경로>`(커스텀 코퍼스=`KRH_DB`), `--global`(전역 `krh-mcp` bin 사용, 미지정 시 `npx` 실행).
+- 옵션: `--scope user`(기본)/`local`/`project`, `--name <이름>`, `--db <경로>`(커스텀 코퍼스=`KRH_DB`), `--global`(전역 `krh-mcp` bin 사용, 미지정 시 `npx` 실행), `--force`(기존 등록 remove 후 재등록=갱신).
 - Claude/Codex는 각 CLI의 `mcp add`에 위임, Gemini는 `~/.gemini/settings.json`에 병합한다(기존 설정 보존).
 - 🔴 **실행 중인 claude 세션 안이 아니라 별도 터미널**에서 실행하세요(중첩 호출 시 인자 파싱이 꼬입니다).
+- 🔴 Windows PowerShell에서 `claude mcp add`를 **직접** 치면 `.ps1` shim이 `-s`를 삼켜 실패할 수 있으니, 수동 명령 대신 `krh mcp install`(내부적으로 `.cmd` 경로 사용)을 쓰세요. 이미 등록돼 있으면 `--force`로 갱신.
 
 **수동 등록** (Claude Desktop 등 MCP 설정을 직접 편집):
 
