@@ -18,17 +18,18 @@ import onnxruntime as ort
 from tokenizers import Tokenizer
 
 CACHE = "node_modules/@huggingface/transformers/.cache/Xenova/bge-m3"
-MODEL = f"{CACHE}/onnx/model_quantized.onnx"
+MODEL = f"{CACHE}/onnx/model_fp16.onnx"  # DirectML 실 GPU(fp16). q8은 DML 미지원→CPU 폴백
 TOK = f"{CACHE}/tokenizer.json"
 DB = "data/history.sqlite"
 DIM = 1024
 TEXT_CAP = 512  # Node 하니스와 동일(긴 passage attention 방어)
 MAXLEN = 512
-BATCH = 32
+BATCH = 16
 
 tok = Tokenizer.from_file(TOK)
 tok.enable_truncation(max_length=MAXLEN)
-tok.enable_padding(pad_id=1, pad_token="<pad>")  # XLM-R pad id=1
+# 고정 길이 패딩 — DirectML 동적 shape 재컴파일 오류 방어(모든 배치 [B,512] 상수 shape)
+tok.enable_padding(pad_id=1, pad_token="<pad>", length=MAXLEN)
 
 sess = ort.InferenceSession(MODEL, providers=["DmlExecutionProvider", "CPUExecutionProvider"])
 print("providers:", sess.get_providers())
@@ -40,7 +41,7 @@ def embed(texts):
     ids = np.array([e.ids for e in encs], dtype=np.int64)
     mask = np.array([e.attention_mask for e in encs], dtype=np.int64)
     out = sess.run(None, {"input_ids": ids, "attention_mask": mask})[0]  # [B, L, 1024]
-    cls = out[:, 0, :]  # CLS(<s>) 토큰 = dense 임베딩
+    cls = out[:, 0, :].astype(np.float32)  # CLS(<s>) 토큰 = dense 임베딩(fp16→fp32)
     n = np.linalg.norm(cls, axis=1, keepdims=True)
     n[n == 0] = 1
     return (cls / n).astype("<f4")
