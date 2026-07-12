@@ -26,3 +26,9 @@ source/
 # Python venv (bge GPU ingest 도구)
 .venv/
 __pycache__/
+
+# 동봉 임베딩 모델(빌드/재현: scripts/fetch-model.mjs) — 118MB, git 제외. npm 배포엔 files로 포함
+/models/
+
+# 추출 버전 마커(런타임 생성)
+data/history.sqlite.version

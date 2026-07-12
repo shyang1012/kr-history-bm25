@@ -86,6 +86,52 @@ export interface SearchHit {
   score: number;
 }
 
+/** 하이브리드 검색 결과 1건 (융합 점수는 높을수록 관련) */
+export interface HybridHit {
+  passageId: number;
+  nodeId: string;
+  corpusCode: string;
+  textHan: string;
+  /** 가중 RRF 융합 점수(높을수록 관련) */
+  score: number;
+}
+
+/** 하이브리드 arm 가중(사전·BM25 authoritative는 높게, 벡터는 recall 보강) */
+export interface HybridWeights {
+  /** 한자 BM25(+간자 확장) */
+  han: number;
+  /** 독음(한글)→한자 사전 */
+  reading: number;
+  /** 직역 BM25 */
+  ko: number;
+  /** 원문 벡터 */
+  vecHan: number;
+  /** 직역 벡터 */
+  vecKo: number;
+}
+
+/** 하이브리드 검색 옵션 */
+export interface HybridOptions {
+  /** 반환 수(기본 20) */
+  limit?: number;
+  /** 벡터(의미) arm 사용(기본 true). 벡터 미탑재 DB면 자동 코어 폴백 */
+  semantic?: boolean;
+  /** 코퍼스 코드 제한(선택) */
+  corpusCode?: string;
+  /** arm별 후보 상한(기본 200) */
+  retrieveK?: number;
+  /** arm 가중 override */
+  weights?: Partial<HybridWeights>;
+}
+
+/** 하이브리드 검색 결과 */
+export interface HybridResult {
+  query: string;
+  /** 벡터 arm이 실제 사용됐는가(모델·벡터 탑재 + semantic on) */
+  semantic: boolean;
+  hits: HybridHit[];
+}
+
 /** 직역(보조) 검색 결과 1건 */
 export interface KoSearchHit extends SearchHit {
   /** 채택된 직역 텍스트 */

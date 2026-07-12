@@ -65,12 +65,14 @@
   "files": [
     "dist",
     "data/history.sqlite.gz",
+    "models",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "build": "tsup",
-    "build:corpus": "npm run build && node scripts/build-corpus.mjs",
+    "build:corpus": "npm run build && node scripts/build-corpus.mjs && node scripts/build-embeddings.mjs",
+    "build:embeddings": "node scripts/build-embeddings.mjs",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -83,6 +85,7 @@
     "validate": "npm run lint && npm run format:check && npm run typecheck && npm test"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "@libsql/client": "^0.14.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "cac": "^6.7.14",
@@ -96,7 +99,6 @@
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",
     "@commitlint/config-conventional": "^19.6.0",
-    "@huggingface/transformers": "^4.2.0",
     "@types/node": "^22.10.5",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
     "@typescript-eslint/parser": "^8.19.1",

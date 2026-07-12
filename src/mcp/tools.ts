@@ -220,4 +220,26 @@ export function registerTools(server: McpServer, corpus: McpCorpus): void {
         await corpus.placeClusters(seed, { scope, parameterMode, simMin, muMin, minCooc, limit }),
       ),
   );
+
+  server.registerTool(
+    'search_hybrid',
+    {
+      title: '하이브리드 검색(BM25+사전+벡터)',
+      description:
+        '한자 BM25·독음/간자 사전·직역 BM25·의미 벡터를 가중 융합해 검색한다(정확 층 위 발견 층). ' +
+        '고유명사·개념·한글 독음·간자체 질의 모두 한 창구로 처리하며, 사전이 authoritative(우선)하고 벡터는 ' +
+        '맥락 recall을 보강한다. 의미 벡터는 번역 완료 코퍼스(삼국사기·삼국유사)에서 동작한다. score는 클수록 관련이 높다.',
+      inputSchema: {
+        query: z.string().min(1).describe('검색어(한자·한글 독음·개념·간자체)'),
+        limit: limitSchema,
+        corpusCode: corpusCodeSchema,
+        semantic: z
+          .boolean()
+          .optional()
+          .describe('의미(벡터) arm 사용(기본 true). false면 BM25+사전 코어만'),
+      },
+    },
+    async ({ query, limit, corpusCode, semantic }) =>
+      jsonResult(await corpus.searchHybrid(query, { limit, corpusCode, semantic })),
+  );
 }

@@ -75,6 +75,16 @@ function makeStub(): { corpus: McpCorpus; calls: Record<string, unknown> } {
         noise: [],
       };
     },
+    searchHybrid: async (query, options) => {
+      calls.searchHybrid = { query, options };
+      return {
+        query,
+        semantic: true,
+        hits: [
+          { passageId: 4, nodeId: 'n4', corpusCode: 'sg', textHan: `${query}原文`, score: 0.032 },
+        ],
+      };
+    },
   };
   return { corpus, calls };
 }
@@ -93,7 +103,7 @@ function firstText(result: { content?: unknown }): string {
 }
 
 describe('MCP tools', () => {
-  it('도구 7종이 등록된다', async () => {
+  it('도구 8종이 등록된다', async () => {
     const { corpus } = makeStub();
     const client = await connect(corpus);
     const { tools } = await client.listTools();
@@ -104,6 +114,7 @@ describe('MCP tools', () => {
       'place_clusters',
       'search_by_reading',
       'search_han',
+      'search_hybrid',
       'search_ko',
       'with_variants',
     ]);

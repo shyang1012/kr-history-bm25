@@ -18,6 +18,8 @@ import type {
   ClusterNeighbor,
   VariantSearchResult,
   PlaceClusterResult,
+  HybridOptions,
+  HybridResult,
 } from '../types';
 import type { ReadingSearchResult } from '../search/search-by-reading';
 import type { PlaceClusterOptions } from '../search/place-clusters';
@@ -38,6 +40,7 @@ export interface McpCorpus {
   withVariants(surface: string, options?: SearchHanOptions): Promise<VariantSearchResult>;
   searchByReading(query: string, options?: SearchHanOptions): Promise<ReadingSearchResult>;
   placeClusters(seed: string, options?: PlaceClusterOptions): Promise<PlaceClusterResult>;
+  searchHybrid(query: string, options?: HybridOptions): Promise<HybridResult>;
 }
 
 /**

@@ -29,6 +29,8 @@ export {
   type FdbscanMembership,
 } from './search/fdbscan';
 export { placeClusters, type PlaceScope, type PlaceClusterOptions } from './search/place-clusters';
+export { searchHybrid, DEFAULT_WEIGHTS } from './search/search-hybrid';
+export type { HybridHit, HybridResult, HybridOptions, HybridWeights } from './types';
 export {
   suggestPlaceClusterParams,
   quantile,

@@ -207,14 +207,27 @@ cli
   });
 
 cli
-  .command('search <term>', '한자(주) 또는 직역(보조) BM25 검색')
+  .command('search <term>', '한자(주)·직역(보조) BM25 또는 하이브리드(사전+벡터) 검색')
   .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
-  .option('--index <index>', 'han|ko|reading', { default: 'han' })
+  .option('--index <index>', 'han|ko|reading|hybrid', { default: 'han' })
   .option('--limit <n>', '최대 결과 수', { default: '20' })
   .action(async (term: string, opts: { db?: string; index: string; limit: string }) => {
+    const allowed = ['han', 'ko', 'reading', 'hybrid'];
+    if (!allowed.includes(opts.index)) {
+      throw new Error(`--index는 ${allowed.join('|')}만 지원합니다(입력: ${opts.index})`);
+    }
     const db = await openForQuery(opts.db);
     const limit = Number(opts.limit);
-    if (opts.index === 'reading') {
+    if (opts.index === 'hybrid') {
+      const result = await db.searchHybrid(term, { limit });
+      if (!result.semantic) {
+        console.log('(벡터 미탑재 — BM25+사전 코어로 폴백)');
+      }
+      for (const h of result.hits) {
+        console.log(`[${h.corpusCode}] ${h.nodeId} ${h.score.toFixed(4)}  ${truncate(h.textHan)}`);
+      }
+      console.log(`(${result.hits.length}건${result.semantic ? ', 의미검색' : ''})`);
+    } else if (opts.index === 'reading') {
       const result = await db.searchByReading(term, { limit });
       for (const m of result.matches) {
         const rep = m.original ?? m.surface;

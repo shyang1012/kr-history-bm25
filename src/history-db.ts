@@ -52,6 +52,8 @@ import {
   type SuggestOptions,
   type SuggestedParams,
 } from './search/suggest-params';
+import { searchHybrid } from './search/search-hybrid';
+import { loadVectorStore, type VectorStore } from './search/vector-store';
 import type {
   SearchHit,
   KoSearchHit,
@@ -59,11 +61,15 @@ import type {
   ClusterNeighbor,
   VariantSearchResult,
   PlaceClusterResult,
+  HybridOptions,
+  HybridResult,
 } from './types';
 
 /** 한국사 BM25 코퍼스 핸들 */
 export class HistoryDb {
   private readonly conn: DbConnection;
+  /** 벡터 저장소 lazy 캐시(연결 귀속 — F-07). close 시 해제 */
+  private vectorStorePromise?: Promise<VectorStore>;
 
   constructor(conn: DbConnection) {
     this.conn = conn;
@@ -113,6 +119,20 @@ export class HistoryDb {
   /** reading-aware 검색 — 한글 독음으로 한자 표기를 찾아 원문 병합 검색(대표음·관용 병기) */
   searchByReading(query: string, options?: SearchHanOptions): Promise<ReadingSearchResult> {
     return searchByReading(this.conn.client, query, options);
+  }
+
+  /** 벡터 저장소를 lazy 로드·캐시한다(연결 귀속) */
+  private getVectorStore(): Promise<VectorStore> {
+    if (!this.vectorStorePromise) {
+      this.vectorStorePromise = loadVectorStore(this.conn.client);
+    }
+    return this.vectorStorePromise;
+  }
+
+  /** 하이브리드 검색 — 한자 BM25+사전+직역+벡터 가중 융합(벡터 미탑재 시 코어 폴백) */
+  async searchHybrid(query: string, options?: HybridOptions): Promise<HybridResult> {
+    const store = await this.getVectorStore();
+    return searchHybrid(this.conn.client, query, store, options);
   }
 
   /** 간자체 질의를 정자 후보로 확장한다(투명성 표시용). searchHan은 내부적으로 이를 자동 적용한다 */
@@ -190,6 +210,7 @@ export class HistoryDb {
 
   /** 연결을 닫는다 */
   close(): void {
+    this.vectorStorePromise = undefined; // 벡터 캐시 해제(F-07)
     this.conn.client.close();
   }
 }
