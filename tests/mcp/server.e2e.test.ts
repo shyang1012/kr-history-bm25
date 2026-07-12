@@ -18,7 +18,11 @@ import { createMcpServer } from '../../src/mcp/create-server';
 import { GUIDE_PROMPT_NAME } from '../../src/mcp/guide';
 
 const gzPath = fileURLToPath(new URL('../../data/history.sqlite.gz', import.meta.url));
+const modelPath = fileURLToPath(
+  new URL('../../models/Xenova/multilingual-e5-small/onnx/model_quantized.onnx', import.meta.url),
+);
 const hasBundle = existsSync(gzPath);
+const hybridReady = hasBundle && existsSync(modelPath);
 const workDir = mkdtempSync(join(tmpdir(), 'krh-mcp-e2e-'));
 
 afterAll(() => {
@@ -133,4 +137,31 @@ describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
     await client.close();
     db.close();
   });
+});
+
+describe.skipIf(!hybridReady)('MCP server e2e — 하이브리드(번들 모델)', () => {
+  it('search_hybrid — 낙랑 의미검색으로 樂浪 원문 반환', async () => {
+    const db = await openBundledDb({ targetDir: workDir });
+    const server = createMcpServer(db);
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'e2e-hybrid', version: '0.0.0' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+
+    const res = await client.callTool({
+      name: 'search_hybrid',
+      arguments: { query: '낙랑', limit: 10 },
+    });
+    const content = res.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text) as {
+      query: string;
+      semantic: boolean;
+      hits: { textHan: string }[];
+    };
+    expect(parsed.query).toBe('낙랑');
+    expect(parsed.semantic).toBe(true);
+    expect(parsed.hits.some((h) => h.textHan.includes('樂浪'))).toBe(true);
+
+    await client.close();
+    db.close();
+  }, 120_000);
 });

@@ -14,11 +14,15 @@ import { fileURLToPath } from 'node:url';
 
 const cli = fileURLToPath(new URL('../../dist/cli/krh.js', import.meta.url));
 const gz = fileURLToPath(new URL('../../data/history.sqlite.gz', import.meta.url));
+const model = fileURLToPath(
+  new URL('../../models/Xenova/multilingual-e5-small/onnx/model_quantized.onnx', import.meta.url),
+);
 const ready = existsSync(cli) && existsSync(gz);
+const hybridReady = ready && existsSync(model);
 
 /** krh 서브프로세스 실행 → stdout(UTF-8) */
 function krh(...args: string[]): string {
-  return execFileSync('node', [cli, ...args], { encoding: 'utf8', timeout: 60_000 });
+  return execFileSync('node', [cli, ...args], { encoding: 'utf8', timeout: 120_000 });
 }
 
 describe.skipIf(!ready)('krh CLI e2e (동봉 코퍼스)', () => {
@@ -45,4 +49,12 @@ describe.skipIf(!ready)('krh CLI e2e (동봉 코퍼스)', () => {
     expect(out).toContain('군집=');
     expect(out).toMatch(/\[C\d+\]/); // 군집 라벨
   });
+});
+
+describe.skipIf(!hybridReady)('krh CLI e2e — 하이브리드(번들 모델)', () => {
+  it('search --index hybrid — 낙랑(한글) 의미검색으로 樂浪 원문', () => {
+    const out = krh('search', '낙랑', '--index', 'hybrid', '--limit', '10');
+    expect(out).toContain('樂浪'); // 한글 독음→사전+벡터→한자 원문
+    expect(out).toContain('의미검색'); // 벡터 arm 동작 표시
+  }, 120_000);
 });
