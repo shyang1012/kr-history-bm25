@@ -64,6 +64,27 @@ function makeStub(): { corpus: McpCorpus; calls: Record<string, unknown> } {
         hits: [],
       };
     },
+    placeClusters: async (seed, options) => {
+      calls.placeClusters = { seed, options };
+      return {
+        seed,
+        scope: 'article',
+        params: { simMin: 0.08, muMin: 0.3, minCooc: 2, limit: 200 },
+        truncated: false,
+        clusters: [{ clusterId: 0, members: [{ surface: '遼東', type: '지명', membership: 1 }] }],
+        noise: [],
+      };
+    },
+    searchHybrid: async (query, options) => {
+      calls.searchHybrid = { query, options };
+      return {
+        query,
+        semantic: true,
+        hits: [
+          { passageId: 4, nodeId: 'n4', corpusCode: 'sg', textHan: `${query}原文`, score: 0.032 },
+        ],
+      };
+    },
   };
   return { corpus, calls };
 }
@@ -82,7 +103,7 @@ function firstText(result: { content?: unknown }): string {
 }
 
 describe('MCP tools', () => {
-  it('도구 6종이 등록된다', async () => {
+  it('도구 8종이 등록된다', async () => {
     const { corpus } = makeStub();
     const client = await connect(corpus);
     const { tools } = await client.listTools();
@@ -90,11 +111,36 @@ describe('MCP tools', () => {
     expect(names).toEqual([
       'cluster',
       'lookup_place',
+      'place_clusters',
       'search_by_reading',
       'search_han',
+      'search_hybrid',
       'search_ko',
       'with_variants',
     ]);
+    await client.close();
+  });
+
+  it('place_clusters는 seed·옵션을 전달하고 퍼지 군집을 반환한다', async () => {
+    const { corpus, calls } = makeStub();
+    const client = await connect(corpus);
+    const res = await client.callTool({
+      name: 'place_clusters',
+      arguments: { seed: '樂浪', scope: 'article', minCooc: 2 },
+    });
+    const parsed = JSON.parse(firstText(res)) as { seed: string; clusters: unknown[] };
+    expect(parsed.seed).toBe('樂浪');
+    expect(parsed.clusters.length).toBeGreaterThan(0);
+    expect(calls.placeClusters).toEqual({
+      seed: '樂浪',
+      options: {
+        scope: 'article',
+        simMin: undefined,
+        muMin: undefined,
+        minCooc: 2,
+        limit: undefined,
+      },
+    });
     await client.close();
   });
 

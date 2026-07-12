@@ -22,6 +22,24 @@ export {
   type ReadingMatch,
   type ReadingDisplay,
 } from './search/search-by-reading';
+export {
+  fdbscan,
+  type FdbscanParams,
+  type FdbscanResult,
+  type FdbscanMembership,
+} from './search/fdbscan';
+export { placeClusters, type PlaceScope, type PlaceClusterOptions } from './search/place-clusters';
+export { searchHybrid, DEFAULT_WEIGHTS } from './search/search-hybrid';
+export type { HybridHit, HybridResult, HybridOptions, HybridWeights } from './types';
+export {
+  suggestPlaceClusterParams,
+  quantile,
+  estimateMinCooc,
+  type SuggestedParams,
+  type SuggestOptions,
+} from './search/suggest-params';
+export { fetchLocalGraph, jaccardSim, type LocalGraph, type UEntity } from './search/local-graph';
+export type { PlaceClusterResult, FuzzyPlaceCluster, FuzzyMember } from './types';
 export { lookupPlace, type LookupOptions } from './search/lookup-place';
 export { cluster, type ClusterOptions } from './search/cluster';
 export {

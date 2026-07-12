@@ -51,8 +51,11 @@ Built for historians and researchers who work directly with the original text �
   (`姜邯贊`); each entity carries a dictionary-headword reading and a conventional reading.
 - **Co-occurrence clustering** — identify a toponym by the *cluster* of neighboring place names,
   rivers, and mountains recorded together, not by isolated single-name comparison.
+- **Hybrid semantic search** — weighted fusion of Hanja BM25 + reading/Simplified dictionary +
+  literal-translation BM25 + **dense vectors** (multilingual-e5-small, bundled). Fully **offline,
+  zero-config, CPU-only** — the embedding model ships inside the package (no download, no server, no GPU).
 - **Structured place/person index** and **variant-form (異表記) expansion**.
-- **MCP server** (`krh-mcp`) — exposes the corpus to LLM clients (Claude, etc.) as callable tools.
+- **MCP server** (`krh-mcp`) — exposes the corpus to LLM clients (Claude, etc.) as 8 callable tools.
 - **Pre-built corpus** — `npm install` and query; no XML ingestion required.
 
 ```bash
@@ -67,6 +70,7 @@ const db = await openBundledDb();
 await db.searchHan('浿水');                          // BM25 over the Hanja original
 await db.searchHan('辽东');                          // Simplified query → normalized to 遼東
 await db.searchByReading('강감찬');                  // Korean reading → Hanja 姜邯贊 (with readings)
+await db.searchHybrid('낙랑');                       // hybrid (BM25 + dictionary + vectors), offline
 await db.cluster('遼東', { neighborType: '지명' });  // neighboring toponyms (+ Simplified forms)
 db.close();
 ```
@@ -76,8 +80,9 @@ Simplified-Chinese forms are secondary discovery/access layers — never the bas
 The tool surfaces the evidence; the researcher draws the conclusions. See the methodology below.
 
 *Keywords: Korean history, Corea, Korea (高麗 / 고리 *Gori*), classical Chinese, Literary Chinese,
-Hanja, full-text search, BM25, historical geography, toponym identification, Samguk Sagi, Samguk
-Yusa, Goryeosa / Coreasa (高麗史), Goguryeo, Baekje, Silla, Gojoseon, Lelang/Nakrang (樂浪), Liaodong (遼東),
+Hanja, full-text search, BM25, hybrid search, semantic search, embeddings, vector search, offline RAG,
+historical geography, toponym identification, Samguk Sagi, Samguk Yusa, Goryeosa / Coreasa (高麗史),
+Goguryeo, Baekje, Silla, Gojoseon, Lelang/Nakrang (樂浪), Liaodong (遼東),
 Simplified/Traditional Chinese, MCP.*
 
 ---
@@ -122,6 +127,9 @@ const bySimp = await db.searchHan('辽东', { limit: 10 });
 // 3) 독음 검색 — 한글 독음으로 한자 찾기(강감찬 → 姜邯贊, 대표음·관용 병기)
 const byReading = await db.searchByReading('강감찬', { limit: 10 });
 
+// 3-1) 하이브리드 검색 — BM25+사전+의미 벡터 융합(오프라인, 모델 동봉). 낙랑(한글)→樂浪 원문
+const hybrid = await db.searchHybrid('낙랑', { limit: 10 });
+
 // 4) 직역 검색 (보조 인덱스) — 사건·현상·서술어에 사용
 const byKo = await db.searchKo('일식', { limit: 10 });
 
@@ -146,10 +154,27 @@ CLI로도 동일하게 쓸 수 있다:
 npx krh search 浿水 --index han --limit 10
 npx krh search 辽东 --index han          # 간자체 질의 → 정자 遼東 자동 정규화
 npx krh search 강감찬 --index reading     # 한글 독음 → 姜邯贊(대표음·관용 병기)
+npx krh search 낙랑 --index hybrid        # BM25+사전+의미 벡터 융합(낙랑 → 樂浪 원문)
 npx krh search 일식 --index ko
 npx krh cluster 浿水 --neighbor-type 지명 --scope paragraph
 npx krh place 浿水 --type 지명
 ```
+
+### 시스템 사양 (의미검색)
+
+`searchHybrid` / `--index hybrid` / `search_hybrid`는 **동봉된 임베딩 모델**(multilingual-e5-small
+양자화 ONNX, 약 118MB)을 첫 사용 시 로드한다. **네트워크 다운로드는 없다**(패키지에 포함).
+
+| | 최소 | 권장 |
+|---|---|---|
+| Node | 20+ | 22+ |
+| RAM | ~1GB(모델 로드) | 2GB+ |
+| 디스크 | ~300MB(모델+코퍼스 압축 해제) | — |
+| GPU | 불필요 (CPU-only 동작) | — |
+
+첫 질의 시 모델 로드로 ~1–2초 지연이 있고, 이후 질의는 캐시된다. 벡터 미탑재 코퍼스(직접 ingest 등)
+에서는 자동으로 **BM25+사전 코어로 폴백**한다(`semantic: false` 반환). 벡터 없이 쓰려면
+`db.searchHybrid(q, { semantic: false })`.
 
 ---
 
@@ -243,6 +268,8 @@ SELECT p.id, p.text_han, bm25(passage_fts_han) AS score
 | `searchHan(term, opts?)` | 한자 원문 BM25 검색(간자체 질의 자동 정규화) | `SearchHit[]` |
 | `searchKo(term, opts?)` | 직역(보조) BM25 검색 | `KoSearchHit[]` |
 | `searchByReading(query, opts?)` | 한글 독음으로 한자 검색 — 대표음·관용·간자체 병기 | `ReadingSearchResult` |
+| `searchHybrid(query, opts?)` | **하이브리드 검색** — 한자 BM25+독음/간자 사전+직역 BM25+의미 벡터 가중 융합. 벡터 미탑재 시 코어 폴백 | `HybridResult` |
+| `placeClusters(seed, opts?)` | 지명 국소 퍼지 군집(FDBSCAN) — 경계 지명 소속도 분할 | `PlaceClusterResult` |
 | `lookupPlace(surface, opts?)` | 표기 출현 위치 구조화 조회 | `PlaceOccurrence[]` |
 | `cluster(surface, opts?)` | 공기 개체(군집). `scope`=article(기사)/paragraph(문단). 지명 간자체 병기 | `ClusterNeighbor[]` |
 | `withVariants(surface, opts?)` | 이표기 확장 검색 | `VariantSearchResult` |
@@ -274,7 +301,7 @@ krh <command> [options]     # 전역 옵션: --db <path> (기본 KRH_DB 또는 h
 
 | 커맨드 | 설명 |
 |--------|------|
-| `search <term> --index han\|ko\|reading --limit <n>` | 한자(주)/직역(보조)/독음 검색. han은 간자체 질의 자동 정규화 |
+| `search <term> --index han\|ko\|reading\|hybrid --limit <n>` | 한자(주)/직역(보조)/독음/**하이브리드**(사전+의미 벡터 융합) 검색. han은 간자체 질의 자동 정규화 |
 | `cluster <surface> --type --neighbor-type --scope --limit` | 공기 군집(--scope article=기사/paragraph=문단, 지명 간자체 병기) |
 | `place <surface> --type --limit` | 표기 출현 위치 조회 |
 | `ingest <dir> --code --name` | XML 사서 디렉터리를 주 코퍼스로 적재 |
@@ -304,15 +331,17 @@ Claude 등에서 검색·군집·조회를 도구로 호출하고, 비정 방법
 전역 설치했다면 `krh-mcp`, 아니면 `npx -y -p kr-history-bm25 krh-mcp`. `KRH_DB` 환경변수를 주면
 동봉본 대신 지정 코퍼스를 연다.
 
-**도구 6종** (파사드에 1:1, JSON 반환):
+**도구 8종** (파사드에 1:1, JSON 반환):
 
 | 도구 | 용도 |
 |------|------|
 | `search_han` | 한자 원문 BM25 — 지명·인명 등 **고유명사**. **간자체(简体) 질의 자동 정규화** |
 | `search_ko` | 직역 BM25 — 일식·전쟁 등 **사건·서술어**(번역 완료분) |
 | `search_by_reading` | 한글 독음으로 한자 표기 검색 — **대표음(사전 표제음)·관용 병기** |
+| `search_hybrid` | **하이브리드** — 한자 BM25+사전+직역+**의미 벡터** 가중 융합(정확 층 위 발견 층) |
 | `lookup_place` | 표기 출현 위치 구조화 조회 |
 | `cluster` | 같은 기사 공기(共起) 군집 — **지명 간자체 병기** |
+| `place_clusters` | 지명 **국소 퍼지 군집**(FDBSCAN) — 경계 지명 소속도 분할 |
 | `with_variants` | 이표기 확장 검색(졸본=홀본) |
 
 **가이드 prompt** — `toponym-identification-guide`: 사서 원문·군집·지도 교차로 지명을 비정하는
@@ -367,12 +396,13 @@ Node ≥ 20. 드라이버는 `@libsql/client`(+drizzle-orm), FTS5 마이그레�
 
 ## 로드맵
 
-- ✅ **MCP 서버** (`krh-mcp`) — 도구 6종 + 비정 가이드로 LLM에 직접 노출. (위 절 참조)
+- ✅ **MCP 서버** (`krh-mcp`) — 도구 8종 + 비정 가이드로 LLM에 직접 노출. (위 절 참조)
 - ✅ **독음 검색·병기** — 한글 독음 → 한자(대표음/관용), 검색 결과 병기.
 - ✅ **간자체 양방향** — 결과 병기(→지도) + 질의 정규화(→중국어권 접근).
-- **하이브리드 검색** — 벡터 KNN(의미 발견층) + BM25 재랭킹, 그 위에 **DBSCAN 군집층**(밀도 기반).
-  libsql 네이티브 벡터(동봉 파일 내 F32_BLOB) 활용.
-- **퍼지 군집(FDBSCAN)** — 경계·이표기의 군집 소속을 등급(가능성)으로. "확정 금지" 방법론과 정합.
+- ✅ **퍼지 군집(FDBSCAN)** — 경계·이표기의 군집 소속을 등급(가능성)으로. "확정 금지" 방법론과 정합.
+- ✅ **하이브리드 검색** — 한자 BM25+사전+직역+**의미 벡터**(e5-small 384d, 동봉) 가중 융합. 삼국사기·
+  삼국유사 벡터 탑재(int8), 오프라인·무설정·CPU 동작. 미번역 사서 원문 벡터는 후속.
+- **전 코퍼스 벡터 확장** — 고려사 등 원문 임베딩(더 강한 한자 임베더 검토 후).
 - **웹 UI 시각화** — 지명 군집 force graph, 좌표 플롯, 한자↔직역 병렬 뷰.
 - **Python wrapper** — 연구자 파이썬 분석 창구(pandas/scikit-learn 연동). 코어 알고리즘은 TS.
 

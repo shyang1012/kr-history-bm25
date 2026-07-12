@@ -207,14 +207,27 @@ cli
   });
 
 cli
-  .command('search <term>', '한자(주) 또는 직역(보조) BM25 검색')
+  .command('search <term>', '한자(주)·직역(보조) BM25 또는 하이브리드(사전+벡터) 검색')
   .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
-  .option('--index <index>', 'han|ko|reading', { default: 'han' })
+  .option('--index <index>', 'han|ko|reading|hybrid', { default: 'han' })
   .option('--limit <n>', '최대 결과 수', { default: '20' })
   .action(async (term: string, opts: { db?: string; index: string; limit: string }) => {
+    const allowed = ['han', 'ko', 'reading', 'hybrid'];
+    if (!allowed.includes(opts.index)) {
+      throw new Error(`--index는 ${allowed.join('|')}만 지원합니다(입력: ${opts.index})`);
+    }
     const db = await openForQuery(opts.db);
     const limit = Number(opts.limit);
-    if (opts.index === 'reading') {
+    if (opts.index === 'hybrid') {
+      const result = await db.searchHybrid(term, { limit });
+      if (!result.semantic) {
+        console.log('(벡터 미탑재 — BM25+사전 코어로 폴백)');
+      }
+      for (const h of result.hits) {
+        console.log(`[${h.corpusCode}] ${h.nodeId} ${h.score.toFixed(4)}  ${truncate(h.textHan)}`);
+      }
+      console.log(`(${result.hits.length}건${result.semantic ? ', 의미검색' : ''})`);
+    } else if (opts.index === 'reading') {
       const result = await db.searchByReading(term, { limit });
       for (const m of result.matches) {
         const rep = m.original ?? m.surface;
@@ -285,6 +298,66 @@ cli
         console.log(`${String(n.count).padStart(5)}  ${n.type}  ${n.surface}${simp}`);
       }
       console.log(`(${neighbors.length}개 이웃)`);
+    },
+  );
+
+cli
+  .command(
+    'place-clusters <surface>',
+    'seed 지명의 국소 퍼지 군집(FDBSCAN) — 공기 소속도. 전역 밀도 아님(국소 분석)',
+  )
+  .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
+  .option('--scope <scope>', '공기 범위: article(기본)|paragraph', { default: 'article' })
+  .option('--parameter-mode <mode>', 'fixed(기본)|auto(seed별 자동 산정)', { default: 'fixed' })
+  .option('--sim-min <n>', 'soft eps(이웃 유사도 하한, fixed 전용 — auto 시 무시)')
+  .option('--mu-min <n>', '코어 밀도 하한(fixed 전용 — auto 시 무시)')
+  .option('--min-cooc <n>', '엣지 컷(최소 공기 수, fixed 전용 — auto 시 자동 산정)')
+  .option('--limit <n>', 'seed 이웃(U) 상한')
+  .action(
+    async (
+      surface: string,
+      opts: {
+        db?: string;
+        scope: string;
+        parameterMode: string;
+        simMin?: string;
+        muMin?: string;
+        minCooc?: string;
+        limit?: string;
+      },
+    ) => {
+      if (opts.scope !== 'article' && opts.scope !== 'paragraph') {
+        throw new Error(`--scope는 article|paragraph만 지원합니다(입력: ${opts.scope})`);
+      }
+      if (opts.parameterMode !== 'fixed' && opts.parameterMode !== 'auto') {
+        throw new Error(`--parameter-mode는 fixed|auto만 지원합니다(입력: ${opts.parameterMode})`);
+      }
+      const db = await openForQuery(opts.db);
+      const r = await db.placeClusters(surface, {
+        scope: opts.scope,
+        parameterMode: opts.parameterMode,
+        simMin: opts.simMin ? Number(opts.simMin) : undefined,
+        muMin: opts.muMin ? Number(opts.muMin) : undefined,
+        minCooc: opts.minCooc ? Number(opts.minCooc) : undefined,
+        limit: opts.limit ? Number(opts.limit) : undefined,
+      });
+      db.close();
+      const p = r.params;
+      console.log(
+        `seed=${r.seed} scope=${r.scope} 군집=${r.clusters.length} 노이즈=${r.noise.length}` +
+          `${r.truncated ? ' (이웃 절단됨)' : ''}` +
+          ` [${r.selection?.parameterMode ?? 'fixed'} simMin=${p.simMin} muMin=${p.muMin} minCooc=${p.minCooc}]`,
+      );
+      for (const c of r.clusters) {
+        const line = c.members
+          .map(
+            (m) =>
+              `${m.surface}${m.membership < 1 ? `(${m.membership.toFixed(2)})` : ''}` +
+              `${m.simplified ? `/${m.simplified}` : ''}`,
+          )
+          .join(' ');
+        console.log(`  [C${c.clusterId}] ${line}`);
+      }
     },
   );
 

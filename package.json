@@ -1,6 +1,6 @@
 {
   "name": "kr-history-bm25",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Convert Korean historical source XML (국사편찬위원회 한국사DB) into a searchable SQLite BM25 corpus — hanja-primary full-text search, structured place/person index, co-occurrence clustering, and an optional LLM literal-translation secondary index.",
   "type": "module",
   "keywords": [
@@ -65,12 +65,14 @@
   "files": [
     "dist",
     "data/history.sqlite.gz",
+    "models",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "build": "tsup",
-    "build:corpus": "npm run build && node scripts/build-corpus.mjs",
+    "build:corpus": "npm run build && node scripts/build-corpus.mjs && node scripts/build-embeddings.mjs",
+    "build:embeddings": "node scripts/build-embeddings.mjs",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -83,6 +85,7 @@
     "validate": "npm run lint && npm run format:check && npm run typecheck && npm test"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "@libsql/client": "^0.14.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "cac": "^6.7.14",

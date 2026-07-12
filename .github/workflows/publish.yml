@@ -30,8 +30,13 @@ jobs:
 
       - run: npm ci
 
-      # 빌드·테스트 명시 (동봉 코퍼스는 커밋된 data/history.sqlite.gz 사용, 재생성 불요)
+      # 빌드 (동봉 코퍼스·벡터는 커밋된 data/history.sqlite.gz 사용, 재생성 불요)
       - run: npm run build
+
+      # 동봉 임베딩 모델 확보 — models/ 는 118MB라 git 제외(checkout에 없음)이므로 배포 전 내려받아
+      # npm 패키지 files("models")에 포함되게 한다. 이 단계로 의미검색 e2e도 CI에서 실검증된다(F-03 오프라인 로드).
+      - run: node scripts/fetch-model.mjs
+
       - run: npm test
 
       # Trusted Publisher → NODE_AUTH_TOKEN 불필요. provenance 포함 publish.

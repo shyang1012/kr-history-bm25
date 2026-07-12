@@ -46,17 +46,30 @@ import { lookupPlace, type LookupOptions } from './search/lookup-place';
 import { cluster, type ClusterOptions } from './search/cluster';
 import { withVariants, addVariantGroup, type VariantMemberSpec } from './search/variants';
 import { searchByReading, type ReadingSearchResult } from './search/search-by-reading';
+import { placeClusters, type PlaceClusterOptions } from './search/place-clusters';
+import {
+  suggestPlaceClusterParams,
+  type SuggestOptions,
+  type SuggestedParams,
+} from './search/suggest-params';
+import { searchHybrid } from './search/search-hybrid';
+import { loadVectorStore, type VectorStore } from './search/vector-store';
 import type {
   SearchHit,
   KoSearchHit,
   PlaceOccurrence,
   ClusterNeighbor,
   VariantSearchResult,
+  PlaceClusterResult,
+  HybridOptions,
+  HybridResult,
 } from './types';
 
 /** 한국사 BM25 코퍼스 핸들 */
 export class HistoryDb {
   private readonly conn: DbConnection;
+  /** 벡터 저장소 lazy 캐시(연결 귀속 — F-07). close 시 해제 */
+  private vectorStorePromise?: Promise<VectorStore>;
 
   constructor(conn: DbConnection) {
     this.conn = conn;
@@ -69,6 +82,8 @@ export class HistoryDb {
    */
   static async open(path: string): Promise<HistoryDb> {
     const conn = createDbConnection(path);
+    // 락 시 즉시 실패 대신 대기(다중 프로세스 공유 접근 방어 — SQLITE_BUSY 완화)
+    await conn.client.execute('PRAGMA busy_timeout = 5000');
     await runMigrations(conn.client);
     return new HistoryDb(conn);
   }
@@ -108,10 +123,37 @@ export class HistoryDb {
     return searchByReading(this.conn.client, query, options);
   }
 
+  /** 벡터 저장소를 lazy 로드·캐시한다(연결 귀속) */
+  private getVectorStore(): Promise<VectorStore> {
+    if (!this.vectorStorePromise) {
+      this.vectorStorePromise = loadVectorStore(this.conn.client);
+    }
+    return this.vectorStorePromise;
+  }
+
+  /** 하이브리드 검색 — 한자 BM25+사전+직역+벡터 가중 융합(벡터 미탑재 시 코어 폴백) */
+  async searchHybrid(query: string, options?: HybridOptions): Promise<HybridResult> {
+    const store = await this.getVectorStore();
+    return searchHybrid(this.conn.client, query, store, options);
+  }
+
   /** 간자체 질의를 정자 후보로 확장한다(투명성 표시용). searchHan은 내부적으로 이를 자동 적용한다 */
   async traditionalize(term: string): Promise<QueryExpansion> {
     const revMap = await loadTraditionalForChars(this.conn.client, [...term]);
     return expandSimplifiedToTraditional(term, revMap);
+  }
+
+  /** seed 유도 국소 퍼지 지명 군집(FDBSCAN) — 공기 기반 소속도(전역 밀도 아님) */
+  placeClusters(seed: string, options?: PlaceClusterOptions): Promise<PlaceClusterResult> {
+    return placeClusters(this.conn.client, seed, options);
+  }
+
+  /** seed별 FDBSCAN 파라미터를 분포 기반으로 추천한다(추천만, 군집 안 함). 없는 seed는 null */
+  suggestPlaceClusterParams(
+    seed: string,
+    options?: SuggestOptions,
+  ): Promise<SuggestedParams | null> {
+    return suggestPlaceClusterParams(this.conn.client, seed, options);
   }
 
   /** 구조화 색인 조회(표기 출현 위치) */
@@ -170,6 +212,7 @@ export class HistoryDb {
 
   /** 연결을 닫는다 */
   close(): void {
+    this.vectorStorePromise = undefined; // 벡터 캐시 해제(F-07)
     this.conn.client.close();
   }
 }

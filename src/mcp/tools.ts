@@ -1,7 +1,7 @@
 /**
  * @Project: kr-history-bm25
  * @File: tools.ts
- * @Description: MCP 도구 6종 등록 — search_han/search_ko/lookup_place/cluster/with_variants/search_by_reading.
+ * @Description: MCP 도구 7종 등록 — search_han/search_ko/search_by_reading/lookup_place/cluster/with_variants/place_clusters.
  *               HistoryDb 파사드에 1:1 매핑하는 얇은 어댑터. 결과는 JSON 텍스트로 반환한다.
  *               도구 설명에 사용 지침(고유명사→han / 사건·서술어→ko)을 인코딩해 LLM 선택을 돕는다.
  * @Author: shyang
@@ -175,5 +175,71 @@ export function registerTools(server: McpServer, corpus: McpCorpus): void {
     },
     async ({ query, limit, corpusCode }) =>
       jsonResult(readingResult(await corpus.searchByReading(query, { limit, corpusCode }))),
+  );
+
+  server.registerTool(
+    'place_clusters',
+    {
+      title: '지명 국소 퍼지 군집(FDBSCAN)',
+      description:
+        'seed 지명의 공기(共起) 국소 네트워크를 퍼지 밀도 군집한다. 경계 지명은 여러 군집에 소속도로 분할된다. ' +
+        '🔴 소속도는 "비정 가능성 등급"이지 확정이 아니다. 전역 밀도가 아니라 seed 유도 국소 분석이며 판단은 연구자 몫.',
+      inputSchema: {
+        seed: z.string().min(1).describe('기준 지명(한자)'),
+        scope: z
+          .enum(['article', 'paragraph'])
+          .optional()
+          .describe('공기 범위: article=기사(기본), paragraph=문단'),
+        parameterMode: z
+          .enum(['fixed', 'auto'])
+          .optional()
+          .describe(
+            'fixed(기본)|auto(seed별 자동 산정 — 희소·고빈도 seed 적응, 선정근거 selection 반환)',
+          ),
+        simMin: z
+          .number()
+          .positive()
+          .optional()
+          .describe('soft eps(이웃 유사도 하한). fixed 전용 — auto 모드에서는 무시됨'),
+        muMin: z
+          .number()
+          .positive()
+          .optional()
+          .describe('코어 밀도 하한. fixed 전용 — auto 모드에서는 무시됨'),
+        minCooc: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe('엣지 컷(최소 공기 수). fixed 전용 — auto 모드에서는 자동 산정됨'),
+        limit: z.number().int().positive().max(1000).optional().describe('seed 이웃(U) 상한'),
+      },
+    },
+    async ({ seed, scope, parameterMode, simMin, muMin, minCooc, limit }) =>
+      jsonResult(
+        await corpus.placeClusters(seed, { scope, parameterMode, simMin, muMin, minCooc, limit }),
+      ),
+  );
+
+  server.registerTool(
+    'search_hybrid',
+    {
+      title: '하이브리드 검색(BM25+사전+벡터)',
+      description:
+        '한자 BM25·독음/간자 사전·직역 BM25·의미 벡터를 가중 융합해 검색한다(정확 층 위 발견 층). ' +
+        '고유명사·개념·한글 독음·간자체 질의 모두 한 창구로 처리하며, 사전이 authoritative(우선)하고 벡터는 ' +
+        '맥락 recall을 보강한다. 의미 벡터는 번역 완료 코퍼스(삼국사기·삼국유사)에서 동작한다. score는 클수록 관련이 높다.',
+      inputSchema: {
+        query: z.string().min(1).describe('검색어(한자·한글 독음·개념·간자체)'),
+        limit: limitSchema,
+        corpusCode: corpusCodeSchema,
+        semantic: z
+          .boolean()
+          .optional()
+          .describe('의미(벡터) arm 사용(기본 true). false면 BM25+사전 코어만'),
+      },
+    },
+    async ({ query, limit, corpusCode, semantic }) =>
+      jsonResult(await corpus.searchHybrid(query, { limit, corpusCode, semantic })),
   );
 }

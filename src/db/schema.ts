@@ -10,6 +10,7 @@ import {
   sqliteTable,
   text,
   integer,
+  blob,
   index,
   uniqueIndex,
   primaryKey,
@@ -252,3 +253,33 @@ export const entityReading = sqliteTable(
     statusIdx: index('entity_reading_status_idx').on(t.status),
   }),
 );
+
+/** 의미 벡터(passage) — e5-small int8 정규화 벡터. kind='han'(원문)|'ko'(직역). (passage_id,kind) 복합 PK */
+export const passageEmbedding = sqliteTable(
+  'passage_embedding',
+  {
+    /** 본문ID · FK → passage.id */
+    passageId: integer('passage_id').notNull(),
+    /** 임베딩 대상 · 'han'(원문 한자) | 'ko'(직역 한국어) */
+    kind: text('kind').notNull(),
+    /** int8 양자화 벡터(round(v*127)) · dim byte BLOB */
+    vec: blob('vec', { mode: 'buffer' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.passageId, t.kind] }),
+  }),
+);
+
+/** 임베딩 메타 — 단일행(id=1). 로드 시 model·dim 호환 검증용 */
+export const embeddingMeta = sqliteTable('embedding_meta', {
+  /** 고정 1 */
+  id: integer('id').primaryKey(),
+  /** 임베딩 모델 식별자 */
+  model: text('model').notNull(),
+  /** 벡터 차원 */
+  dim: integer('dim').notNull(),
+  /** 양자화 방식 · 'int8' 등 */
+  quant: text('quant').notNull(),
+  /** 빌드 시각 · ISO8601 */
+  builtAt: text('built_at').notNull(),
+});

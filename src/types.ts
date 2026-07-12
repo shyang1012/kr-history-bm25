@@ -86,6 +86,52 @@ export interface SearchHit {
   score: number;
 }
 
+/** 하이브리드 검색 결과 1건 (융합 점수는 높을수록 관련) */
+export interface HybridHit {
+  passageId: number;
+  nodeId: string;
+  corpusCode: string;
+  textHan: string;
+  /** 가중 RRF 융합 점수(높을수록 관련) */
+  score: number;
+}
+
+/** 하이브리드 arm 가중(사전·BM25 authoritative는 높게, 벡터는 recall 보강) */
+export interface HybridWeights {
+  /** 한자 BM25(+간자 확장) */
+  han: number;
+  /** 독음(한글)→한자 사전 */
+  reading: number;
+  /** 직역 BM25 */
+  ko: number;
+  /** 원문 벡터 */
+  vecHan: number;
+  /** 직역 벡터 */
+  vecKo: number;
+}
+
+/** 하이브리드 검색 옵션 */
+export interface HybridOptions {
+  /** 반환 수(기본 20) */
+  limit?: number;
+  /** 벡터(의미) arm 사용(기본 true). 벡터 미탑재 DB면 자동 코어 폴백 */
+  semantic?: boolean;
+  /** 코퍼스 코드 제한(선택) */
+  corpusCode?: string;
+  /** arm별 후보 상한(기본 200) */
+  retrieveK?: number;
+  /** arm 가중 override */
+  weights?: Partial<HybridWeights>;
+}
+
+/** 하이브리드 검색 결과 */
+export interface HybridResult {
+  query: string;
+  /** 벡터 arm이 실제 사용됐는가(모델·벡터 탑재 + semantic on) */
+  semantic: boolean;
+  hits: HybridHit[];
+}
+
 /** 직역(보조) 검색 결과 1건 */
 export interface KoSearchHit extends SearchHit {
   /** 채택된 직역 텍스트 */
@@ -98,6 +144,60 @@ export interface VariantSearchResult {
   surfaces: string[];
   /** 병합된 검색 결과 */
   hits: SearchHit[];
+}
+
+/** 퍼지 군집 멤버 1건(소속도 병기) */
+export interface FuzzyMember {
+  /** 표기(한자·정자, 불변) */
+  surface: string;
+  /** 개체 유형 */
+  type: string;
+  /** 이 군집에 대한 소속도(코어=1, 경계=분할) */
+  membership: number;
+  /** 간자체 병기(정자와 다를 때만·지도 대조용) */
+  simplified?: string;
+}
+
+/** 퍼지 지명 군집 1건 */
+export interface FuzzyPlaceCluster {
+  /** 군집 id(정렬 canonical) */
+  clusterId: number;
+  /** 소속 멤버(소속도 내림차순·표기 오름차순) */
+  members: FuzzyMember[];
+}
+
+/** 파라미터 선정 근거(auto 모드) */
+export interface PlaceClusterSelection {
+  /** 'fixed'(기본값·명시값) | 'auto'(seed별 자동) */
+  parameterMode: 'fixed' | 'auto';
+  /** 산정 방법 식별자(auto) */
+  method?: string;
+  /** 평가한 후보 조합 수(auto) */
+  candidateCount?: number;
+  /** 선정 조합의 품질 점수(auto) */
+  score?: number;
+  /** suggest 초기 추천값(auto) */
+  suggested?: { minCooc: number; simMin: number; muMin: number };
+  /** 전 후보 병리 시 fixed 기본값으로 폴백했음을 표시(auto) */
+  fallback?: 'fixed-default';
+}
+
+/** seed 유도 국소 퍼지 군집 결과(전역 밀도 아님) */
+export interface PlaceClusterResult {
+  /** 기준 표기(seed) */
+  seed: string;
+  /** 공기 단위 */
+  scope: 'article' | 'paragraph';
+  /** 적용 파라미터(실제값) */
+  params: { simMin: number; muMin: number; minCooc: number; limit: number };
+  /** seed 이웃이 limit로 절단됐는가 */
+  truncated: boolean;
+  /** 퍼지 군집 목록 */
+  clusters: FuzzyPlaceCluster[];
+  /** 노이즈 지명(정렬) */
+  noise: string[];
+  /** 파라미터 선정 근거(재현성·투명성) */
+  selection?: PlaceClusterSelection;
 }
 
 /** 군집(co-occurrence) 결과 1건 */

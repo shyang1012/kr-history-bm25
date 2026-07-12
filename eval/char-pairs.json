@@ -1,0 +1,240 @@
+{
+ "meta": {
+  "purpose": "e5-small이 정자↔간자·한자음·고유명사·개념·원문↔직역을 같은 의미공간에 놓는지 cosine 측정",
+  "embedPrefix": "query: (대칭 비교)",
+  "status": "DRAFT — 제가 초안, 승현님 검수 필요",
+  "count": 46
+ },
+ "pairs": [
+  {
+   "category": "traditional-simplified",
+   "a": "國",
+   "b": "国"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "韓國",
+   "b": "韩国"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "學校",
+   "b": "学校"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "樂浪",
+   "b": "乐浪"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "高句麗",
+   "b": "高句丽"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "龍",
+   "b": "龙"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "廣",
+   "b": "广"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "鐵",
+   "b": "铁"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "縣",
+   "b": "县"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "遼東",
+   "b": "辽东"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "漢",
+   "b": "汉"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "觀",
+   "b": "观"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "鴨綠",
+   "b": "鸭绿"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "濟",
+   "b": "济"
+  },
+  {
+   "category": "traditional-simplified",
+   "a": "開",
+   "b": "开"
+  },
+  {
+   "category": "traditional-koreading",
+   "a": "樂浪",
+   "b": "낙랑"
+  },
+  {
+   "category": "traditional-koreading",
+   "a": "平壤",
+   "b": "평양"
+  },
+  {
+   "category": "traditional-koreading",
+   "a": "高句麗",
+   "b": "고구려"
+  },
+  {
+   "category": "traditional-koreading",
+   "a": "百濟",
+   "b": "백제"
+  },
+  {
+   "category": "traditional-koreading",
+   "a": "新羅",
+   "b": "신라"
+  },
+  {
+   "category": "traditional-koreading",
+   "a": "靺鞨",
+   "b": "말갈"
+  },
+  {
+   "category": "traditional-koreading",
+   "a": "慶州",
+   "b": "경주"
+  },
+  {
+   "category": "traditional-koreading",
+   "a": "金城",
+   "b": "금성"
+  },
+  {
+   "category": "traditional-koreading",
+   "a": "朝鮮",
+   "b": "조선"
+  },
+  {
+   "category": "traditional-koreading",
+   "a": "遼東",
+   "b": "요동"
+  },
+  {
+   "category": "proper-noun",
+   "a": "赫居世",
+   "b": "혁거세"
+  },
+  {
+   "category": "proper-noun",
+   "a": "金庾信",
+   "b": "김유신"
+  },
+  {
+   "category": "proper-noun",
+   "a": "弓裔",
+   "b": "궁예"
+  },
+  {
+   "category": "proper-noun",
+   "a": "甄萱",
+   "b": "견훤"
+  },
+  {
+   "category": "proper-noun",
+   "a": "乙支文德",
+   "b": "을지문덕"
+  },
+  {
+   "category": "proper-noun",
+   "a": "淵蓋蘇文",
+   "b": "연개소문"
+  },
+  {
+   "category": "proper-noun",
+   "a": "居西干",
+   "b": "거서간"
+  },
+  {
+   "category": "proper-noun",
+   "a": "朴堤上",
+   "b": "박제상"
+  },
+  {
+   "category": "concept",
+   "a": "地震",
+   "b": "지진"
+  },
+  {
+   "category": "concept",
+   "a": "彗星",
+   "b": "혜성"
+  },
+  {
+   "category": "concept",
+   "a": "日有食之",
+   "b": "일식"
+  },
+  {
+   "category": "concept",
+   "a": "蝗",
+   "b": "황충"
+  },
+  {
+   "category": "concept",
+   "a": "大水",
+   "b": "홍수"
+  },
+  {
+   "category": "concept",
+   "a": "旱",
+   "b": "가뭄"
+  },
+  {
+   "category": "concept",
+   "a": "雹",
+   "b": "우박"
+  },
+  {
+   "category": "sentence-original-translation",
+   "a": "十三年,秋八月,樂浪犯北邊,攻䧟朶山城.",
+   "b": "13년, 가을 8월에 樂浪이 북쪽 변경을 침범하여 朶山城을 공격하여 함락시켰다."
+  },
+  {
+   "category": "sentence-original-translation",
+   "a": "三月,至牛頭州,望祭太白山.樂浪·帶方两國歸服.",
+   "b": "3월, 牛頭州에 이르러, 太白山을 望祭했다. 樂浪·帶方 두 나라가 귀복했다."
+  },
+  {
+   "category": "sentence-original-translation",
+   "a": "十六年,隋帝詔,拜王爲上開府·樂浪郡公·新羅王.",
+   "b": "16년, 隋帝가 詔를 내려 왕을 上開府·樂浪郡公·新羅王으로 삼았다."
+  },
+  {
+   "category": "sentence-original-translation",
+   "a": "四年,夏四月辛丑朔,日有食之.",
+   "b": "4년, 여름 4월 辛丑 초하루에 일식(日食)이 있었다."
+  },
+  {
+   "category": "sentence-original-translation",
+   "a": "二十四年,夏六月壬申晦,日有食之.",
+   "b": "24년, 여름 6월 壬申 그믐에 일식이 있었다."
+  },
+  {
+   "category": "sentence-original-translation",
+   "a": "三十年,夏四月己亥晦,日有食之.",
+   "b": "30년, 여름 4월 己亥 그믐에 일식이 있었다."
+  }
+ ]
+}
