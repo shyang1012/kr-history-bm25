@@ -22,3 +22,7 @@ source/
 # Beads / Dolt files (added by bd init)
 .dolt/
 .beads-credential-key
+
+# Python venv (bge GPU ingest 도구)
+.venv/
+__pycache__/

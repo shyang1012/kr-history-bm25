@@ -30,6 +30,27 @@ export function recallAtK<T>(ranked: T[], relevant: Set<T>, k: number): number {
 }
 
 /**
+ * Hit@K — 상위 K 안에 정답이 하나라도 있으면 1, 없으면 0. 정답셋이 비면 0.
+ * 여러 질의의 평균이 hit rate(튜닝 목표 지표). Recall@K와 달리 정답 수에 좌우되지 않아 해석적.
+ * @param ranked - 랭킹된 item 배열(순위순)
+ * @param relevant - 정답 item 집합
+ * @param k - 절단 순위(양수)
+ * @returns 0 또는 1
+ */
+export function hitAtK<T>(ranked: T[], relevant: Set<T>, k: number): number {
+  if (relevant.size === 0) {
+    return 0;
+  }
+  const top = ranked.slice(0, Math.max(0, k));
+  for (const item of top) {
+    if (relevant.has(item)) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
  * Reciprocal Rank — 첫 정답의 순위 역수(1-based). 정답이 하나도 없으면 0.
  * 여러 질의의 평균이 MRR이다(평균은 호출측 책임).
  * @param ranked - 랭킹된 item 배열(순위순)

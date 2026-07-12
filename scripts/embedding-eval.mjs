@@ -21,14 +21,49 @@ import {
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { openBundledDb } from '../dist/index.js';
-import { rrf, cosineSim, recallAtK, reciprocalRank, ndcgAtK, mean } from '../dist/eval/index.js';
+import {
+  rrf,
+  cosineSim,
+  recallAtK,
+  hitAtK,
+  reciprocalRank,
+  ndcgAtK,
+  mean,
+} from '../dist/eval/index.js';
 
-const MODEL = 'Xenova/multilingual-e5-small';
+// 임베더 선택: EMBED_MODEL=bge → bge-m3(1024d, 프리픽스 없음) / 기본 e5-small(384d, query:/passage: 프리픽스)
+const EMBED =
+  (process.env.EMBED_MODEL || 'e5') === 'bge'
+    ? // bge-m3: CLS 풀링, 프리픽스 없음(dense retrieval), q8 양자화. 배치 8·긴 seq OOM 방어
+      {
+        model: 'Xenova/bge-m3',
+        dim: 1024,
+        tag: 'bgem3',
+        pooling: 'cls',
+        dtype: 'q8',
+        batch: 8,
+        qPrefix: '',
+        pPrefix: '',
+      }
+    : // e5-small: mean 풀링, query:/passage: 프리픽스
+      {
+        model: 'Xenova/multilingual-e5-small',
+        dim: 384,
+        tag: 'e5small',
+        pooling: 'mean',
+        batch: 64,
+        qPrefix: 'query: ',
+        pPrefix: 'passage: ',
+      };
+// 임베딩 텍스트 문자 캡(긴 passage의 attention OOM 방어. 문단 대부분 이보다 짧음)
+const TEXT_CAP = 512;
+const MODEL = EMBED.model;
+const DIM = EMBED.dim;
 const RERANK_MODEL = 'Xenova/bge-reranker-base';
 const RERANK_TOPN = 30; // 리랭크 대상 하이브리드 상위 후보 수
-const DIM = 384;
 const UNIVERSE = ['sg', 'sy']; // 원문+직역이 모두 존재하는 코퍼스
 const K_RETRIEVE = 200; // arm별 랭킹 상한
+const KS = [3, 5, 10, 20, 30]; // Hit@K 곡선(운영 top-K 결정용 — LLM에 제공할 문서 수). @1은 평가상 무의미
 const ARMS = ['bm25-han', 'bm25-ko', 'dict-han', 'vec-han', 'vec-ko', 'hybrid'];
 const USE_RERANKER = process.argv.includes('--reranker');
 
@@ -42,9 +77,9 @@ function log(...a) {
 /** e5 임베더 로드(mean pooling + normalize → cosine=dot) */
 async function loadEmbedder() {
   log(`[model] ${MODEL} 로딩…`);
-  const ex = await pipeline('feature-extraction', MODEL);
+  const ex = await pipeline('feature-extraction', MODEL, EMBED.dtype ? { dtype: EMBED.dtype } : {});
   return async (texts) => {
-    const out = await ex(texts, { pooling: 'mean', normalize: true });
+    const out = await ex(texts, { pooling: EMBED.pooling, normalize: true });
     return out.tolist();
   };
 }
@@ -52,9 +87,9 @@ async function loadEmbedder() {
 /** 배치 임베딩(진행 로그) */
 async function embedAll(embed, texts, prefix, label) {
   const vecs = new Array(texts.length);
-  const B = 64;
+  const B = EMBED.batch;
   for (let i = 0; i < texts.length; i += B) {
-    const batch = texts.slice(i, i + B).map((t) => prefix + t);
+    const batch = texts.slice(i, i + B).map((t) => prefix + t.slice(0, TEXT_CAP));
     const res = await embed(batch);
     for (let j = 0; j < res.length; j++) vecs[i + j] = Float32Array.from(res[j]);
     if (i % (B * 8) === 0)
@@ -66,8 +101,8 @@ async function embedAll(embed, texts, prefix, label) {
 /** 바이너리 임베딩 캐시(재현·재실행 가속). universe 시그니처 불일치 시 무효 */
 function cachePaths(kind) {
   return {
-    bin: resolve('tmp', `embed-e5small-${kind}.f32`),
-    meta: resolve('tmp', `embed-e5small-${kind}.meta.json`),
+    bin: resolve('tmp', `embed-${EMBED.tag}-${kind}.f32`),
+    meta: resolve('tmp', `embed-${EMBED.tag}-${kind}.meta.json`),
   };
 }
 function loadCache(kind, ids) {
@@ -185,8 +220,8 @@ async function main() {
     saveCache(kind, ids, map);
     return map;
   }
-  const vecHan = await buildVecs('han', hanText, 'passage: ');
-  const vecKo = await buildVecs('ko', koText, 'passage: ');
+  const vecHan = await buildVecs('han', hanText, EMBED.pPrefix);
+  const vecKo = await buildVecs('ko', koText, EMBED.pPrefix);
 
   // --- 사전(정자↔간자 역맵, 독음→surface) via raw SQL ---
   async function simplifiedToTraditional(q) {
@@ -249,7 +284,7 @@ async function main() {
   const e = await getEmbedder();
   const cpByCat = {};
   for (const p of cp.pairs) {
-    const [va, vb] = await e(['query: ' + p.a, 'query: ' + p.b]);
+    const [va, vb] = await e([EMBED.qPrefix + p.a, EMBED.qPrefix + p.b]);
     const cos = cosineSim(Float32Array.from(va), Float32Array.from(vb));
     (cpByCat[p.category] ??= []).push({ a: p.a, b: p.b, cos: Number(cos.toFixed(4)) });
   }
@@ -275,7 +310,7 @@ async function main() {
     const positives = new Set(topic.positives);
     for (const { q, lang } of topic.queries) {
       log(`  [eval ${++qn}/${totalQ}] ${topic.id} · "${q}" (${lang})`);
-      const qVec = Float32Array.from((await e(['query: ' + q]))[0]);
+      const qVec = Float32Array.from((await e([EMBED.qPrefix + q]))[0]);
       const ranks = {
         'bm25-han': await bm25Han(q),
         'bm25-ko': await bm25Ko(q),
@@ -322,12 +357,12 @@ async function main() {
       }
       const row = { topic: topic.id, q, lang, positiveCount: positives.size, arms: {} };
       for (const [arm, ranked] of Object.entries(ranks)) {
-        row.arms[arm] = {
-          'recall@5': Number(recallAtK(ranked, positives, 5).toFixed(4)),
-          'recall@10': Number(recallAtK(ranked, positives, 10).toFixed(4)),
-          rr: Number(reciprocalRank(ranked, positives).toFixed(4)),
-          'ndcg@10': Number(ndcgAtK(ranked, positives, 10).toFixed(4)),
-        };
+        const m = {};
+        for (const k of KS) m[`hit@${k}`] = hitAtK(ranked, positives, k);
+        m['recall@10'] = Number(recallAtK(ranked, positives, 10).toFixed(4));
+        m.rr = Number(reciprocalRank(ranked, positives).toFixed(4));
+        m['ndcg@10'] = Number(ndcgAtK(ranked, positives, 10).toFixed(4));
+        row.arms[arm] = m;
       }
       perQuery.push(row);
     }
@@ -340,12 +375,13 @@ async function main() {
     for (const arm of armSet) {
       const present = rows.filter((r) => r.arms[arm]);
       if (present.length === 0) continue;
-      agg[arm] = {
-        'recall@5': Number(mean(present.map((r) => r.arms[arm]['recall@5'])).toFixed(4)),
-        'recall@10': Number(mean(present.map((r) => r.arms[arm]['recall@10'])).toFixed(4)),
-        mrr: Number(mean(present.map((r) => r.arms[arm].rr)).toFixed(4)),
-        'ndcg@10': Number(mean(present.map((r) => r.arms[arm]['ndcg@10'])).toFixed(4)),
-      };
+      const a = {};
+      for (const k of KS)
+        a[`hit@${k}`] = Number(mean(present.map((r) => r.arms[arm][`hit@${k}`])).toFixed(4));
+      a['recall@10'] = Number(mean(present.map((r) => r.arms[arm]['recall@10'])).toFixed(4));
+      a.mrr = Number(mean(present.map((r) => r.arms[arm].rr)).toFixed(4));
+      a['ndcg@10'] = Number(mean(present.map((r) => r.arms[arm]['ndcg@10'])).toFixed(4));
+      agg[arm] = a;
     }
     return agg;
   }
@@ -358,8 +394,10 @@ async function main() {
     meta: {
       model: MODEL,
       dim: DIM,
+      embedTag: EMBED.tag,
       universe: UNIVERSE.join('+'),
       passages: ids.length,
+      vectorBytesPerModel: ids.length * 2 * DIM * 4, // 원문+직역 float32 원본 크기(참고)
       arms: armSet,
       reranker: USE_RERANKER,
       note: 'krh-cvh Phase 0 — 리랭커 제외 결정론. 정답셋·char-pair는 DRAFT(승현님 검수 대상).',
@@ -373,12 +411,17 @@ async function main() {
   log('\n===== char-pair cosine (Q-A) =====');
   for (const [cat, v] of Object.entries(charPairs))
     log(`  ${cat.padEnd(30)} mean=${v.mean} [${v.min}~${v.max}]`);
-  log('\n===== 검색 arm 전체 평균 (Q-B) =====');
-  log('  arm'.padEnd(20), 'R@5    R@10   MRR    nDCG@10');
+  log(`\n===== Hit@K 곡선 (arm × K) — 임베더=${EMBED.tag}(${DIM}d) =====`);
+  log('  arm'.padEnd(20) + KS.map((k) => `@${k}`.padStart(7)).join(''));
   for (const arm of armSet) {
     const a = overall[arm];
-    if (a)
-      log(`  ${arm.padEnd(18)} ${a['recall@5']}  ${a['recall@10']}  ${a.mrr}  ${a['ndcg@10']}`);
+    if (a) log('  ' + arm.padEnd(18) + KS.map((k) => String(a[`hit@${k}`]).padStart(7)).join(''));
+  }
+  log(`\n===== 검색 arm 전체 평균 (Q-B) — 임베더=${EMBED.tag}(${DIM}d) =====`);
+  log('  arm'.padEnd(20), 'Hit@10 R@10   MRR    nDCG@10');
+  for (const arm of armSet) {
+    const a = overall[arm];
+    if (a) log(`  ${arm.padEnd(18)} ${a['hit@10']}  ${a['recall@10']}  ${a.mrr}  ${a['ndcg@10']}`);
   }
   log('\n===== 질의 언어별 MRR (Q-D·Q-E) =====');
   log('  lang'.padEnd(16), armSet.join('  '));

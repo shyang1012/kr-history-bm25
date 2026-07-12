@@ -7,4 +7,4 @@
  * @LastModified: 2026-07-12
  */
 export { rrf, cosineSim, type FusionScore } from './fusion';
-export { recallAtK, reciprocalRank, ndcgAtK, mean } from './metrics';
+export { recallAtK, hitAtK, reciprocalRank, ndcgAtK, mean } from './metrics';

@@ -6,7 +6,7 @@
  * @LastModified: 2026-07-12
  */
 import { describe, it, expect } from 'vitest';
-import { recallAtK, reciprocalRank, ndcgAtK, mean } from '../src/eval/metrics';
+import { recallAtK, hitAtK, reciprocalRank, ndcgAtK, mean } from '../src/eval/metrics';
 
 describe('recallAtK', () => {
   it('상위 K 안의 정답 비율', () => {
@@ -24,6 +24,20 @@ describe('recallAtK', () => {
 
   it('K=0이면 0', () => {
     expect(recallAtK([1, 2], new Set([1]), 0)).toBe(0);
+  });
+});
+
+describe('hitAtK', () => {
+  it('상위 K에 정답이 있으면 1', () => {
+    expect(hitAtK([1, 2, 3], new Set([3]), 3)).toBe(1);
+    expect(hitAtK([1, 2, 3], new Set([9, 2]), 5)).toBe(1);
+  });
+  it('상위 K에 정답이 없으면 0', () => {
+    expect(hitAtK([1, 2, 3], new Set([3]), 2)).toBe(0);
+    expect(hitAtK([1, 2, 3], new Set([9]), 5)).toBe(0);
+  });
+  it('정답셋이 비면 0', () => {
+    expect(hitAtK([1, 2], new Set<number>(), 5)).toBe(0);
   });
 });
 
