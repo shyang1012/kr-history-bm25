@@ -9,10 +9,15 @@
  */
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const cli = fileURLToPath(new URL('../../dist/cli/krh.js', import.meta.url));
+const pkgVersion = (
+  JSON.parse(
+    readFileSync(fileURLToPath(new URL('../../package.json', import.meta.url)), 'utf8'),
+  ) as { version: string }
+).version;
 const gz = fileURLToPath(new URL('../../data/history.sqlite.gz', import.meta.url));
 const model = fileURLToPath(
   new URL('../../models/Xenova/multilingual-e5-small/onnx/model_quantized.onnx', import.meta.url),
@@ -24,6 +29,13 @@ const hybridReady = ready && existsSync(model);
 function krh(...args: string[]): string {
   return execFileSync('node', [cli, ...args], { encoding: 'utf8', timeout: 120_000 });
 }
+
+describe.skipIf(!existsSync(cli))('krh CLI e2e — 버전 정합(빌드 산출물)', () => {
+  it('--version stdout이 package.json version과 일치(하드코딩 드리프트 차단)', () => {
+    const out = krh('--version');
+    expect(out).toContain(pkgVersion);
+  });
+});
 
 describe.skipIf(!ready)('krh CLI e2e (동봉 코퍼스)', () => {
   it('search --index reading — 독음으로 한자를 찾고 대표음(한자)〔관용〕 병기', () => {
