@@ -56,6 +56,8 @@ const rows = (
                SELECT 1 FROM translation t
                 WHERE t.passage_id = p.id AND t.provider = ? AND t.status = 'done'
          )
+         AND p.text_han NOT LIKE '%＞%'
+         AND p.text_han NOT LIKE '『%』卷%'
        ORDER BY p.id
     `,
     args: [PROVIDER],

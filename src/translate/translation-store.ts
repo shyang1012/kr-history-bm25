@@ -9,6 +9,16 @@
 import type { Client } from '@libsql/client';
 import { koToUnigram } from '../ingest/tokenizer';
 
+/**
+ * 혼재 metadata passage 제외 조건(krh-6a0). 국편위 원자료에는 한문 원문이 아닌 색인·편찬안내
+ * breadcrumb 문구가 일부 섞여 있다 — `＞`(fullwidth) 또는 문두 `『書名』卷…` 패턴. 이들은 직역 대상이
+ * 아니므로 미완 조회에서 제외한다. 패턴 문자열에 `%`·`_` 리터럴이 없어 ESCAPE 불필요.
+ * SQL 조각은 앞에 개행+AND를 포함해 기존 WHERE 절에 그대로 이어 붙인다.
+ */
+const MIXED_METADATA_EXCLUDE = `
+         AND p.text_han NOT LIKE '%＞%'
+         AND p.text_han NOT LIKE '『%』卷%'`;
+
 /** 미완 본문 1건 */
 export interface PendingPassage {
   /** 본문 id */
@@ -65,7 +75,7 @@ export async function fetchPending(
               WHERE t.passage_id = p.id
                 AND t.provider = ?
                 AND t.status = 'done'
-       )${corpusFilter}
+       )${MIXED_METADATA_EXCLUDE}${corpusFilter}
        ORDER BY p.id${limitClause}
     `,
     args,
@@ -109,7 +119,7 @@ export async function countPending(
               WHERE t.passage_id = p.id
                 AND t.provider = ?
                 AND t.status = 'done'
-       )${corpusFilter}
+       )${MIXED_METADATA_EXCLUDE}${corpusFilter}
     `,
     args,
   });
@@ -176,4 +186,33 @@ export async function markFailed(
             , created_at = excluded.created_at`,
     args: [passageId, provider, new Date().toISOString()],
   });
+}
+
+/**
+ * 혼재 metadata passage에 잘못 적재된 직역을 소급 정정한다(krh-6a0). 색인·편찬안내 문구(＞ / 『書名』卷)
+ * passage에 걸린 translation 레코드와 보조 FTS(passage_fts_ko) 항목을 함께 삭제한다. passage 자체와
+ * 한자 FTS는 건드리지 않는다(직역 대상에서만 제거). 정상 passage의 직역은 보존된다.
+ * @param client - libsql 클라이언트
+ * @returns 삭제된 translation 건수
+ */
+export async function purgeMixedMetadataTranslations(client: Client): Promise<number> {
+  const mixedSelect = `
+    SELECT id FROM passage
+     WHERE text_han LIKE '%＞%'
+        OR text_han LIKE '『%』卷%'`;
+
+  const before = await client.execute(
+    `SELECT COUNT(*) AS c FROM translation WHERE passage_id IN (${mixedSelect})`,
+  );
+  const deleted = Number(before.rows[0]?.c ?? 0);
+
+  await client.batch(
+    [
+      `DELETE FROM passage_fts_ko WHERE passage_id IN (${mixedSelect})`,
+      `DELETE FROM translation WHERE passage_id IN (${mixedSelect})`,
+    ],
+    'write',
+  );
+
+  return deleted;
 }
