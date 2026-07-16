@@ -1,176 +1,203 @@
-# krh-agent-lab — "작은 온디바이스 모델 + 한자 RAG" 역사 에이전트 실험 설계
+# krh-agent-lab — 작은 LLM 범용 에이전트 하네스 (call_mcp / run_cli) 설계
 
-- **작성일**: 2026-07-17
+- **작성일**: 2026-07-17 (v2 — 범용 메타도구로 재구성)
 - **작성자**: shyang
 - **상태**: 설계 승인 대기 (브레인스토밍 산출물)
-- **관련 bd**: `2026-07-12-pm-kr-history-bm25-rag` · `data-driven-insight` · `evidence-first-guard` · `trust-principle` · `dual-index`
-- **참조 코드**: `D:\dev\devApps\code-wiz\code-wiz_worker\src\tooluse\*` (재활용 원본), `src/mcp/tools.ts`, `src/history-db.ts`
+- **관련 bd**: `krh-izc` · `2026-07-12-pm-kr-history-bm25-rag` · `data-driven-insight` · `evidence-first-guard` · `trust-principle`
+- **참조 코드**: code-wiz `src/tooluse/*`(재활용 원본), `src/mcp/`(krh-mcp 서버), `src/history-db.ts`(파사드)
 
 ---
 
 ## 1. 요약
 
-Gemma 4 E2B(약 2.3B effective, 온디바이스 멀티모달, Apache 2.0)에 `kr-history-bm25`의 한자 사료 검색·군집 도구를 붙여, **소형 모델이 한자 원문 근거로 얼마나 잘 답하는가**를 검증하는 실험 애플리케이션이다. 소형 모델이 스스로 도구를 호출하고 도구가 돌려준 원문을 근거로 답하게 하여, "도구 없는 LLM = 환각 / 도구 붙은 LLM = 근거 제시"의 **before/after** 대비를 눈으로 보인다.
+작은 온디바이스 LLM(Gemma 4 E2B)에게 **범용 메타도구**를 쥐여 주면 도메인 전용이 아니라 **범용 에이전트**로 동작한다는 가설을 검증하는 실험 하네스다. 메타도구는 둘:
 
-이 프로젝트의 정체성(`2026-07-12-pm...rag`: "설치형·오프라인 도메인 RAG, 해자=모델이 아니라 신뢰 코퍼스")과 정합하며, 라이브러리 코어는 **일절 수정하지 않는다**. 산출물은 라이브러리를 소비하는 예시 겸 실험 하네스로서 `examples/agent-lab/`에 둔다.
+- **`call_mcp(server, tool, args)`** — 임의 MCP 서버의 도구를 호출 (1단계)
+- **`run_cli(command)`** — 임의 CLI 명령을 실행 (1.5단계, 보안 gate)
+
+이 둘만 있으면 소형 LLM이 재래핑 없이 어떤 MCP·CLI든 부린다. **첫 검증 도메인은 kr-history** — 우리 `krh-mcp` 서버가 이미 존재하므로 `call_mcp`가 그대로 소비한다(도구 재래핑 0). 사실상 **"임의 MCP 서버를 아무 로컬 LLM에 물리는 범용 브릿지"**(로컬 미니 에이전트)이며, 실전 이식을 전제로 **범용 코어를 kr-history 비종속**으로 설계한다.
+
+라이브러리 코어(`src/`)는 수정하지 않는다. 산출물은 `examples/agent-lab/`.
 
 ## 2. 배경·동기·가설
 
-- **동기**: 관리형 텍스트 LLM 통합(CF Workers AI 등)은 이미 경험이 충분하다. 새 탐구 가치는 **경량 멀티모달 에이전트를 제품에 번들**하는 형태와, **작은 모델 + 지식베이스(RAG)의 실제 성능**에 있다.
-- **가설(H1)**: 2B급 온디바이스 모델도 잘 설계된 도구 계약(OpenAI 호환 function calling)과 근거 접지가 주어지면, 한자·고유명사 도메인에서 파라미터 지식만으로 답할 때보다 유의미하게 정확·검증가능한 답을 낸다.
-- **핵심 리스크(R1)**: 소형 E2B가 `tool_calls`를 OpenAI 포맷으로 **안정적으로 출력**하는지가 관문이다(코드위즈는 26B급 + 서버 function calling이라 이 리스크가 낮았음). 1단계는 바로 이 리스크를 싸게 검증한다.
+- **동기**: 관리형 텍스트 LLM 통합은 이미 충분히 경험했다. 새 가치는 (a) 경량 온디바이스 모델을 (b) **범용 도구 오케스트레이션**으로 에이전트화하는 데 있다. 이 아키텍처는 실전 이식(면접처 즉시 활용)을 전제로 한다.
+- **가설(H1)**: 2B급 온디바이스 모델도 `tools/list`로 발견한 도구 스키마를 주입받으면, **범용 메타도구(call_mcp)** 만으로 도메인 지식(kr-history)에 접지된 검증가능한 답을 낸다.
+- **핵심 리스크(R1)**: 범용 메타도구는 추상이 한 겹 높다 — 소형 E2B가 `call_mcp`의 `server`·`tool`·`args`(중첩 스키마)를 정확히 구성해야 한다. 이 난이도 자체가 H1의 관문이다. 1단계가 이를 싸게 검증한다.
 
 ## 3. 목표 · 비목표
 
 ### 목표 (1단계)
-- kr-history-bm25 도구를 붙인 E2B 에이전트가 대표 질의셋에서 **도구를 자율 호출 → 원문 근거로 답변**하는 것을 실증한다.
-- before/after(도구 미사용 vs 사용) 차이를 **정성·정량으로 기록**한다.
-- 코드위즈 tool-use 오케스트레이션 자산을 **모델 백엔드 무관하게** 재활용할 수 있음을 검증한다.
+- `call_mcp` 메타도구 + `McpBridge`로 소형 E2B가 **krh-mcp 도구를 자율 호출 → 원문 근거로 답변**함을 실증한다.
+- 범용 코어(McpBridge·orchestrator·OllamaCaller)를 **kr-history 비종속**으로 구현해 추후 독립 패키지 추출이 가능하게 한다.
+- before/after(도구 미사용 vs 사용)를 정성·정량으로 기록한다.
 
-### 비목표 (YAGNI — 후속 단계로 분리)
-- 멀티모달(이미지) 접지 → **1.5단계**.
-- 브라우저 in-browser 번들(transformers.js+WebGPU)·before/after 데모 웹앱 UI → **2단계**.
-- 원격 MCP·호스팅(`krh-0ny`)과의 통합.
-- 다국어 페르소나, 세션 영속화, 인증·과금.
+### 비목표 (YAGNI — 후속 분리)
+- `run_cli` 및 그 보안 gate → **1.5단계**.
+- 멀티모달(이미지) 접지 → **2단계**.
+- 브라우저 in-browser 번들(transformers.js+WebGPU) → **3단계**.
+- 다중 MCP 서버 동시 오케스트레이션(1단계는 krh-mcp 단일 대상, 스키마만 범용), 세션 영속화, 인증·과금.
 
 ## 4. 범위 · 단계 로드맵
 
 | 단계 | 내용 | 게이트 |
 |------|------|--------|
-| **1단계 (본 스펙 집중)** | Ollama `gemma4:e2b` + 재활용 orchestrator + kr-history 도구(in-process) — **텍스트 tool calling 검증** | §9 성공 기준 |
-| 1.5단계 | 멀티모달 접지 — 고지도·한자 이미지 판독 → 코퍼스 교정 | 1단계 통과 시 착수 |
-| 2단계 | 브라우저 in-browser 번들 + before/after 데모 웹앱 | 1.5 검증 후 별도 스펙 |
+| **1단계 (본 스펙 집중)** | Ollama `gemma4:e2b` + 재활용 orchestrator + **`call_mcp` 메타도구 + McpBridge**, 대상 = krh-mcp. 텍스트 tool calling + 근거접지 검증 | §9 성공 기준 |
+| 1.5단계 | **`run_cli` 메타도구** + 보안 gate(allowlist) → 완전 범용(krh CLI·파일·git) | 1단계 통과 시 |
+| 2단계 | 멀티모달 접지 — 고지도·한자 이미지 판독 → 코퍼스 교정 | 1.5 검증 후 |
+| 3단계 | 브라우저 in-browser 번들 + before/after 데모 웹앱 | 별도 스펙 |
 
-**착수 0스텝(모델 가용성 검증)**: 실험 전체가 모델 실재에 걸려 있으므로(R1이 관문), 계획 착수 1차로 `ollama pull gemma4:e2b` 태그와 HF 카드(`google/gemma-4-E2B-it`) 실재를 확인한다. (2026-07-17 확인: Ollama `gemma4:e2b`·`gemma4:e2b-it-q4_K_M`, HF `google/gemma-4-E2B-it` 존재 — Gemma 3n E2B와 별개 계열.) 가용성 미확인 시 모델명·링크 정정.
+**착수 0스텝(모델 가용성 검증)**: 계획 착수 1차로 `ollama pull gemma4:e2b` 태그와 HF 카드(`google/gemma-4-E2B-it`) 실재를 확인한다. (2026-07-17 확인: Ollama `gemma4:e2b`·`gemma4:e2b-it-q4_K_M`, HF `google/gemma-4-E2B-it` 존재 — Gemma 3n E2B와 별개 계열.)
 
 ## 5. 아키텍처
 
 ### 5.1 재활용 vs 신규 경계
 
-**결정적 통찰**: 코드위즈 `orchestrator.ts`는 `ModelCaller` 인터페이스로 **의존성 역전(DIP)** 되어 있어 모델 백엔드를 직접 import하지 않는다. 따라서 **멀티라운드 루프·예산·leak strip 골격은 그대로 이식**한다. 단 신규 작업은 하나가 아니라 **셋**이다:
+코드위즈 `orchestrator.ts`는 `ModelCaller`로 **의존성 역전(DIP)** 되어 있어 백엔드 무관하게 재활용한다. 신규는 넷:
 
-- **신규 ①** `ModelCaller` 구현체 = Ollama 어댑터(§6.1)
-- **신규 ②** kr-history 도구 래핑(§6.2)
-- **신규 ③** **근거 접지 검증기**(§6.5) — 코드위즈의 환각검출은 `extractUrls()` + `ctx.provided.map(s => s.url)`로 **URL exact-match 전용**(orchestrator.ts line 27–34, 230–239)이다. 우리 도메인엔 URL이 없고 근거는 passage id·한자 surface이므로, 오케스트레이터 코어의 URL 추출·비교 블록을 **passage id/surface 접지 검증기로 치환**한다. surface는 부분열이 본문에 자연 등장할 수 있어(fuzzy) 검출 방식 정의 자체가 설계 결정이다.
+- **신규 ①** `OllamaModelCaller` = `ModelCaller` 구현 (§6.1)
+- **신규 ②** `McpBridge` = MCP SDK 클라이언트 브릿지 — connect·listTools·callTool·close (§6.2)
+- **신규 ③** `call_mcp` 메타 `ToolSpec` — McpBridge를 orchestrator 도구 계약으로 노출 (§6.3)
+- **신규 ④** `GroundingChecker` = 도메인 접지 어댑터 — 코드위즈 URL exact-match(orchestrator.ts line 27–34, 230–239)를 **passage id/surface 접지**로 치환 (§6.5)
 
 ```
 ┌─ 재활용 (code-wiz/src/tooluse에서 이식) ─────────────┐
 │ orchestrator.ts   멀티라운드 루프 (callModel ↔ tool)   │
-│ registry.ts       ToolSpec · ToolContext · BudgetTracker│
+│ registry.ts       ToolSpec · ToolContext · BudgetTracker · gate│
 │ types.ts          ChatMessage·ToolCall·ModelTurn (OpenAI 호환)│
-│ sanitizeToolLeak  가드레일: 내부 도구 leak strip        │
-│ (환각검출 골격은 재활용하되 URL→근거접지로 치환 = 신규③)│
+│ sanitizeToolLeak  내부 도구 leak strip                 │
+│ (환각검출 골격 재활용, URL→근거접지로 치환 = 신규④)     │
 └───────────────┬─────────────────────────────────────┘
-                │ ModelCaller (OpenAI 호환 계약)   ← 🆕 신규 ①
+                │ ModelCaller (OpenAI 호환)   ← 🆕①
                 ▼
-         OllamaModelCaller
-         (POST /v1/chat/completions → ModelTurn 변환)
-                │ 도구 호출
+         OllamaModelCaller  ── POST localhost:11434/v1/chat/completions
+                │ tool_calls: call_mcp(server, tool, args)
                 ▼
-   kr-history 도구 (ToolSpec) ──in-process──▶ HistoryDb 파사드
-   search_han·search_ko·cluster·lookup_place·with_variants …
-     🆕 신규 ②(래핑) / 재활용(파사드)
-                │ 근거 축적 → ctx.provided {passageId, hanSurface}
+   call_mcp ToolSpec  ← 🆕③   ──▶  McpBridge  ← 🆕②
+                                      │ MCP SDK Client + StdioClientTransport
+                                      ▼
+                                 krh-mcp 서버 (기존, node dist/mcp/server.js)
+                                 search_han·cluster·lookup_place … (재활용)
+                │ 결과 JSON → ctx.provided {passageId, hanSurface}
                 ▼
-   근거 접지 검증기 GroundingChecker   ← 🆕 신규 ③ (§6.5)
+         GroundingChecker  ← 🆕④  (도메인 접지 어댑터, §6.5)
 ```
 
-### 5.2 데이터 흐름 (1턴 예: "낙랑은 평양이었나?")
+**범용 코어 격리(실전 원칙)**: `McpBridge`·`OllamaModelCaller`·orchestrator·`call_mcp`는 **kr-history를 전혀 모른다**(범용). kr-history 인지는 **GroundingChecker(접지 어댑터)와 부팅 설정(어느 MCP를 붙이나)** 에만 있다. → 코어를 추후 독립 패키지로 추출 가능.
 
-1. 페르소나(system) + 질의(user) → orchestrator 루프 진입.
-2. `callModel`(=OllamaModelCaller)이 E2B에 messages + tools(function schema) 전달.
-3. E2B가 `tool_calls: [search_han(樂浪), cluster(樂浪)]` 반환.
-4. orchestrator가 `ToolSpec.handler` 실행 → HistoryDb 파사드 in-process 호출 → 결과를 `role:tool`로 누적. 통과 출처는 `ctx.provided`에 축적.
-5. E2B가 도구 결과로 최종 답변 생성(원문 id 인용).
-6. orchestrator가 근거접지 검증(§6.5, id 인용 대조)·leak strip 후 `finalText` 반환.
+### 5.2 도구 발견 — tools/list 미리 주입
 
-### 5.3 도구 접근 방식 — MCP 아닌 in-process
+부팅 시 `McpBridge`가 대상 서버(krh-mcp)에 `tools/list`를 호출해 도구 스키마(name·description·inputSchema)를 받는다. 이 목록을 **`call_mcp` 도구 설명 + 페르소나에 인라인 주입**해, 소형 LLM이 유효한 `tool`명과 `args` 스키마를 알고 호출하게 한다(추론 단계 절감). `call_mcp`의 `tool`은 `enum`(발견된 도구명)으로 제약한다.
 
-`src/mcp/tools.ts`는 `HistoryDb` 파사드에 1:1 매핑하는 얇은 어댑터다. 같은 저장소 안 실험이므로 MCP transport(stdio/HTTP)를 거치지 않고 **`HistoryDb`를 직접 `ToolSpec`으로 래핑**한다. 도구 스키마(설명·파라미터)는 `src/mcp/tools.ts`의 기존 정의를 참조·재사용해 계약 일관성을 유지한다. (원격 MCP는 2단계/`krh-0ny`에서.)
+### 5.3 데이터 흐름 (예: "낙랑은 평양이었나?")
+1. 페르소나(system, 도구목록 주입) + 질의(user) → orchestrator 루프.
+2. `OllamaModelCaller`가 E2B에 messages + [`call_mcp`] schema 전달.
+3. E2B가 `tool_calls: call_mcp(server:"krh", tool:"search_han", args:{term:"樂浪"})` 등 반환.
+4. `call_mcp` handler가 `McpBridge.callTool`로 krh-mcp 호출 → 결과 JSON을 `role:tool`로 누적. **주입된 접지 어댑터(`extractEvidence`, §6.3)를 통해** 근거를 `ctx.provided`에 push(코어는 도메인 무지).
+5. E2B가 도구 결과로 최종 답변(원문 `[id]` 인용).
+6. orchestrator가 근거접지 검증(§6.5)·leak strip 후 `finalText` 반환.
 
 ## 6. 컴포넌트 상세
 
-### 6.1 `OllamaModelCaller` (신규, 얇음)
-- 시그니처: `ModelCaller = (messages, tools) => Promise<ModelTurn>`.
-- 구현: `POST http://localhost:11434/v1/chat/completions` (OpenAI 호환), body에 `messages`·`tools`·`tool_choice:'auto'`·`model:'gemma4:e2b'`. 응답의 `choices[0].message`를 `ModelTurn`(content·toolCalls·usage)으로 변환.
-- Ollama base URL·모델명은 환경변수/설정으로 주입(DIP 유지).
+### 6.1 `OllamaModelCaller` (신규 ①, 얇음)
+- `ModelCaller = (messages, tools) => Promise<ModelTurn>`.
+- `POST http://localhost:11434/v1/chat/completions`(OpenAI 호환), body: `messages`·`tools`·`tool_choice:'auto'`·`model`. 응답 `choices[0].message` → `ModelTurn`(content·toolCalls·usage). base URL·모델명은 설정 주입(DIP).
 
-### 6.2 kr-history 도구 래핑 (신규, 얇음)
-- 각 도구 = `ToolSpec` 1개: `name`·`description`·`parameters`(기존 zod/JSON schema 재사용)·`cost`(in-process라 0 또는 명목)·`handler`(HistoryDb 파사드 호출).
-- 1단계 도구셋(텍스트): `search_han`·`search_ko`·`search_hybrid`·`search_by_reading`·`lookup_place`·`cluster`·`with_variants`·`place_clusters`.
-- `ctx.provided`에 근거(원문 passage id·surface)를 push → 근거접지 검증(§6.5)의 offered 집합.
+### 6.2 `McpBridge` (신규 ②, 범용 코어 — kr-history 무지)
+- `@modelcontextprotocol/sdk`의 `Client` + `StdioClientTransport`로 대상 MCP 서버를 자식 프로세스로 spawn·연결.
+- API: `connect()`·`listTools(): ToolInfo[]`·`callTool(name, args): unknown`·`close()`.
+- 실전 견고성: 연결 타임아웃, `callTool` 에러를 `{error}`로 정규화(orchestrator 계약), 프로세스 종료 시 정리. 다중 서버 대비 `Map<serverId, Client>` 구조(1단계는 krh 하나 등록).
+- **1단계 대상 = krh-mcp**: `node dist/mcp/server.js`(빌드 선행 필요; `src/mcp/server.ts`는 shebang·`StdioServerTransport` 확인됨). `KRH_DB` 미지정 시 동봉 코퍼스를 자동 오픈하므로 e2e 기동이 현실적. 실행 경로·빌드 선행은 `config.ts`·README에 고정한다.
 
-### 6.3 페르소나·프롬프트
-- `trust-principle`·`source/context.md` 정합: **근거 없이 단정 금지, 도구 결과로만 답, 원문 id 인용, 확정 표현 회피(‘~라는 견해/드러난다’)**.
-- 통설 오프레이밍 방지 지침(`discovery-*` 메모리의 낙랑·遼水 사례 정신) 반영.
+### 6.3 `call_mcp` 메타 `ToolSpec` (신규 ③, 범용 코어)
+- **팩토리로 생성(도메인 격리의 lynchpin)** — `makeCallMcpTool(bridge: McpBridge, extractEvidence?: (toolName: string, result: unknown) => Evidence[]): ToolSpec`. 도메인 결합을 **콜백 주입(DIP)** 으로 격리 → `call_mcp`는 kr-history 타입을 import하지 않는다. orchestrator는 `spec.handler(args, ctx)`만 호출하므로(코드위즈 orchestrator.ts line 195), 어댑터는 이 팩토리 인자로만 들어온다.
+- `name:'call_mcp'`, `parameters`: `{ server:enum, tool:enum(발견목록), args:object }`.
+- `handler(args, ctx)` 순서:
+  1. `gate`: 등록 서버·발견 도구만 허용(미등록 거부).
+  2. **args 런타임 검증** — 발견된 도구 `inputSchema`로 `args`를 검증(zod 등). 미충족 = 구성 실패로 계수 + `{error}` 반환(§8-#1 측정을 결정적으로). `args:object`는 함수 스키마로 dependent 검증이 불가하므로 이 사후 검증이 필수.
+  3. `bridge.callTool(tool, args)` 실행.
+  4. `extractEvidence`가 주입돼 있으면 `extractEvidence(tool, result)`로 근거를 뽑아 `ctx.provided`에 push(도메인 격리). 미주입이면 raw 결과만 반환. **어댑터 예외 방어** — `extractEvidence`가 던지는 예외(파싱 실패 등)는 삼켜 raw 결과를 유지한다(어댑터 버그가 도구 호출을 실패로 오염시키지 않게 = 측정 무결성 보호).
+- 배선: 부팅(run.ts/config)에서 `makeCallMcpTool(bridge, krHistoryExtractEvidence)`로 조립 — **도메인 인지는 이 배선 지점에만** 존재.
 
 ### 6.4 재활용 이식 모듈
-- `orchestrator.ts`·`registry.ts`·`types.ts`·`sanitizeToolLeak.ts`를 `examples/agent-lab/`로 복사 이식하되, code-wiz 고유 의존(`SourceItem`·`WorkersAiClient`·CRDB 도구)은 제거/치환. 이식 시 헤더 블록에 출처(code-wiz cw-owt9)·이식일 명시.
-- orchestrator의 URL 기반 환각검출 블록(`URL_RE`·`extractUrls`·`offeredUrls`/`citedUrls`/`hallucinatedUrls`)은 **제거**하고 §6.5 검증기 호출로 대체. `ToolUseMetrics`의 URL 필드는 kr-history 접지 지표(§6.5)로 치환한다.
+- `orchestrator.ts`·`registry.ts`·`types.ts`·`sanitizeToolLeak.ts`를 `examples/agent-lab/src/orchestrator/`로 이식. code-wiz 고유 의존(`SourceItem`·`WorkersAiClient`·CRDB 도구) 제거/치환.
+- orchestrator의 URL 환각검출 블록(`URL_RE`·`extractUrls`·`offeredUrls/citedUrls/hallucinatedUrls`)은 **제거**하고 §6.5 검증기 호출로 대체. `ToolUseMetrics` URL 필드는 접지 지표로 치환. 이식 헤더에 출처(code-wiz cw-owt9)·이식일 명시.
 
-### 6.5 근거 접지 검증기 `GroundingChecker` (신규 ③ — 실험 측정의 핵심)
-코드위즈 환각검출은 URL exact-match 전용이라 우리 도메인엔 부적합. 대체 설계:
-- **offered(근거 집합)**: 각 도구 handler가 `ctx.provided`에 push하는 근거 = `{ passageId, hanSurface }`. (code-wiz `SourceItem`을 kr-history용 `Evidence` 타입으로 재정의.)
-- **cited 추출 — 구조적 인용 우선**: 페르소나가 답변에서 근거를 **명시적 `[id]` 토큰**으로 인용하도록 강제(§6.3 프롬프트). `finalText`에서 `[id]`를 추출해 offered id 집합과 **exact match** → 미접지 id = 환각 후보(자동 지표).
-- **보조 — surface 접지(정성)**: 답변에 등장한 한자 지명이 offered `hanSurface` 집합에 포함되는지 점검. 한자 부분열이 본문에 자연 등장할 수 있어(fuzzy) **자동 차단이 아니라 정성 라벨**로만 기록.
-- 즉 **자동 지표(id 인용 접지율) + 정성 검토(사실주장 접지)를 분리**해 §8 성공기준 #3을 측정가능하게 만든다. 검증기는 순수 함수(문자열 in → 지표 out)로 단위 테스트 가능.
+### 6.5 `GroundingChecker` + kr-history 접지 어댑터 (신규 ④ — 실험 측정 핵심, 도메인 격리)
+- **offered(근거 집합)**: kr-history 접지 어댑터 `krHistoryExtractEvidence`(§6.3에 `extractEvidence` 콜백으로 주입)가 `call_mcp` 결과(krh-mcp 도구 JSON)를 파싱해 `Evidence = { passageId, hanSurface }`로 추출 → call_mcp handler가 `ctx.provided`에 push. (도구별: `search_han/search_ko/with_variants/search_by_reading`→`passageId`+`textHan`, `lookup_place`→`passageId`, `cluster/place_clusters`→`surface`.)
+- **cited 추출 — 구조적 인용 우선**: 페르소나가 답변에서 근거를 **명시적 `[id]` 토큰**으로 인용하도록 강제. `finalText`에서 `[id]` 추출 → offered id와 **exact match** → 미접지 id = 환각 후보(자동 지표).
+- **보조 — surface 접지(정성)**: 답변의 한자 지명이 offered `hanSurface`에 포함되는지 점검(fuzzy → 자동 차단 아닌 정성 라벨).
+- `GroundingChecker`(순수 함수: finalText+offered → 지표)는 **범용**, 접지 어댑터(krh 결과 파싱)만 도메인 인지. → 다른 도메인은 어댑터만 교체.
+
+### 6.6 페르소나·프롬프트 (도메인)
+- `trust-principle`·`source/context.md` 정합: 근거 없이 단정 금지, 도구 결과로만, 원문 `[id]` 인용, 확정 표현 회피. 통설 오프레이밍 방지(`discovery-*` 사례 정신).
+- `call_mcp` 사용법 + 발견된 krh 도구 목록(§5.2 주입) + `[id]` 인용 규칙을 페르소나에 포함.
 
 ## 7. 디렉토리 구조
 
 ```
 examples/agent-lab/
-  README.md               # 실행법(ollama pull gemma4:e2b), 실험 목적
-  package.json            # 워크스페이스 예시 (kr-history-bm25 의존)
+  README.md               # 실행법(ollama pull gemma4:e2b, krh-mcp 빌드), 실험 목적
+  package.json            # 워크스페이스 예시 (kr-history-bm25·@modelcontextprotocol/sdk 의존)
+  tsconfig.json
   src/
-    ollama-caller.ts      # OllamaModelCaller (신규)
-    tools.ts              # HistoryDb → ToolSpec 래핑 (신규)
-    persona.ts            # 페르소나 프롬프트 (신규)
-    orchestrator/         # 코드위즈 이식(재활용): orchestrator·registry·types·sanitize
+    orchestrator/         # 코드위즈 이식(재활용): orchestrator·registry·types·sanitize-tool-leak
+    ollama-caller.ts      # 신규① OllamaModelCaller
+    mcp-bridge.ts         # 신규② McpBridge (범용 코어, kr-history 무지)
+    call-mcp-tool.ts      # 신규③ call_mcp ToolSpec (범용 코어)
+    grounding.ts          # 신규④ GroundingChecker (범용) + Evidence 타입
+    kr-history-adapter.ts # krh-mcp 결과 → Evidence 접지 어댑터 (도메인 격리)
+    persona.ts            # 페르소나 프롬프트 (도메인)
+    config.ts             # 부팅 설정 — 어느 MCP를 붙이나, 모델명, base URL
     run.ts                # CLI 진입 — 질의 1건 실행, before/after 출력
   eval/
-    queries.json          # 대표 질의셋 (낙랑·遼水·압록 등)
+    queries.json          # 대표 질의셋 (낙랑·遼水·압록 — sg/sy 범위)
     report.ts             # 성공 기준 측정·기록
-  tests/                  # vitest — 단위 + e2e(실 Ollama)
+  tests/                  # vitest — 단위 + e2e(실 Ollama + krh-mcp)
 ```
 
 ## 8. 1단계 성공 기준
 
-1. **도구 자율 호출**: E2B가 대표 질의에서 적절한 도구를 스스로 호출한다(`tool_calls` 안정 출력, JSON 파싱 실패율 목표 < 10%).
-2. **근거 기반 답변**: 도구 결과를 사용해 답하고, 원문 id/surface를 인용한다.
-3. **근거 접지(핵심)**: 답변의 핵심 사실 주장이 `ctx.provided` 근거에 접지된다. 측정 = ① 자동 — 답변이 인용한 `[id]`가 offered id에 존재(미접지 id율 목표 0) · ② 정성 — 답변의 지명·수치 주장이 offered `hanSurface`/passage에 등장(날조 없음). 검증 방식은 §6.5.
-4. **대표 질의셋 통과**: 낙랑·遼水·압록 등 `discovery-*` 메모리 사례에서 도구 경유 답이 통설 단정 없이 공기 지명군을 근거로 제시.
-5. **before/after 기록**: 도구 미사용(파라미터 지식만) 대비 개선을 정성 예시 + 정량 지표(환각 건수·인용률·도구호출 성공률)로 문서화.
+1. **메타도구 정확 구성(핵심)**: E2B가 `call_mcp(server, tool, args)`를 유효하게 구성한다 — `tool`이 발견 목록에 있고 `args`가 해당 도구 스키마를 만족(구성 실패율 목표 < 15%).
+2. **도구 자율 호출**: 대표 질의에서 적절한 krh 도구를 스스로 선택·호출한다.
+3. **근거 기반 답변**: 도구 결과로 답하고 원문 `[id]`를 인용한다.
+4. **근거 접지(핵심)**: ① 자동 — 인용 `[id]`가 offered id에 존재(미접지 id율 목표 0) · ② 정성 — 지명·수치 주장이 offered `hanSurface`/passage에 등장. (§6.5)
+5. **대표 질의셋 통과**: 낙랑·遼水·압록 등 `discovery-*` 사례에서 통설 단정 없이 공기 지명군을 근거로 제시.
+6. **before/after 기록**: 도구 미사용 대비 개선을 정성 예시 + 정량 지표(메타도구 구성 성공률·도구호출 성공률·`[id]` 인용률·미접지 id율)로 문서화.
 
 ## 9. 실험 설계 (before/after)
 
-- **질의셋**: `eval/queries.json` — discovery 메모리 실측 시드 기반(낙랑 공기군, 遼水/遼河 용법차, 鴨綠 지명화석 등) + 일반 사료 질의.
-  - ※ **코퍼스 커버리지 전제**: `search_ko`·`search_hybrid`는 번역 완료 코퍼스(sg/sy = 삼국사기·삼국유사)에서만 동작한다. 시드는 sg/sy 범위 내로 선정해 코퍼스 미커버리지를 도구선택 실패로 오인하지 않는다. `search_han`은 전체 한자 코퍼스에서 동작.
+- **질의셋**: `eval/queries.json` — discovery 메모리 실측 시드(낙랑 공기군, 遼水/遼河 용법차, 鴨綠 지명화석) + 일반 사료 질의.
+  - ※ **코퍼스 커버리지 전제**: `search_ko`·`search_hybrid`는 번역 완료 코퍼스(sg/sy = 삼국사기·삼국유사)에서만 동작. 시드는 sg/sy 범위 내로 선정해 미커버리지를 도구선택 실패로 오인하지 않는다. `search_han`은 전체 한자 코퍼스에서 동작.
 - **A조건(before)**: 도구 없이 E2B 단독 답변.
-- **B조건(after)**: 동일 질의를 agent-lab(도구 붙임)으로.
-- **측정**(§6.5 지표): 도구호출 성공률, `[id]` 인용률, 미접지 id율(자동 환각 지표), surface 접지 정성 라벨. `eval/report.ts`가 표로 산출.
+- **B조건(after)**: 동일 질의를 agent-lab(call_mcp+krh-mcp)으로.
+- **측정**(§6.5·§8): 메타도구 구성 성공률, 도구호출 성공률, `[id]` 인용률, 미접지 id율(자동 환각 지표), surface 접지 정성 라벨. `eval/report.ts`가 표로 산출.
 
 ## 10. 테스트 · 품질 게이트
 
-- **TDD**: 각 신규 모듈(ollama-caller·tools·persona) 단위 테스트 선작성(vitest). ModelCaller는 mock 응답으로 orchestrator 배선 검증.
-- **e2e**: 실제 Ollama(`gemma4:e2b`) 기동 후 대표 질의 1~2건으로 tool calling·근거 접지 계약 검증. (Ollama 미가용 환경에선 skip 태깅.)
-- **게이트**: 루트 `npm run validate`(lint·format:check·tsc·vitest) 통과. **경계 확정** — agent-lab의 **lint·typecheck·단위 테스트는 루트 게이트에 포함**하고, **e2e(실 Ollama)만 환경 미가용 시 skip 태깅**으로 런타임 격리한다(§11 R3의 '격리'는 e2e 런타임 격리를 뜻하며 정적 검사 포함과 상충하지 않는다).
+- **TDD**: 각 신규 모듈(ollama-caller·mcp-bridge·call-mcp-tool·grounding·kr-history-adapter) 단위 테스트 선작성. `McpBridge`는 mock transport/stub 서버로, `ModelCaller`는 mock 응답으로 orchestrator 배선 검증. `GroundingChecker`는 순수 함수 케이스.
+- **e2e**: 실제 Ollama(`gemma4:e2b`) + 실제 krh-mcp(stdio) 기동 후 대표 질의 1~2건으로 call_mcp·근거접지 계약 검증. (Ollama/krh-mcp 미가용 시 skip 태깅.)
+- **게이트**: 루트 `npm run validate`(lint·format:check·tsc·vitest) 통과. **경계 확정** — agent-lab의 lint·typecheck·단위 테스트는 루트 게이트 포함, **e2e만 환경 미가용 시 skip 태깅**으로 런타임 격리(§11 R5).
 
 ## 11. 리스크 · 완화
 
 | 리스크 | 완화 |
 |--------|------|
-| R1: E2B `tool_calls` 불안정 | 1단계가 곧 이 검증. 실패 시 프롬프트 하드닝·few-shot·도구 수 축소로 반복. 그래도 안 되면 가설 반증으로 기록(실험의 정직한 산출). |
-| R2: 이식 시 code-wiz 의존 누수 | `SourceItem`·`WorkersAiClient` 등 치환 목록을 이식 체크리스트로 관리. |
-| R3: 예시 패키지가 루트 게이트 오염 | 워크스페이스 경계·tsconfig 분리로 격리. |
-| R4: in-process 도구가 라이브러리 내부에 결합 | 공개 파사드(`HistoryDb`/배럴 `index.ts`)만 사용, 내부 모듈 직접 참조 금지. |
+| R1: 소형 E2B가 `call_mcp` 중첩 스키마 부정확 구성(핵심 관문) | tools/list 스키마 미리 주입(§5.2), `tool` enum 제약, few-shot 예시, 도구 수 제한. 실패 시 프롬프트 하드닝 반복, 그래도 안 되면 가설 반증으로 정직 기록. |
+| R2: MCP 클라이언트 lifecycle/에러 | McpBridge에 타임아웃·에러 정규화·프로세스 정리 내장(§6.2). e2e로 실 계약 검증. |
+| R3: `run_cli` 임의 실행 보안 | 1.5단계로 분리. allowlist gate(registry gate 활용)·작업 디렉토리 제한 선설계. |
+| R4: 이식 시 code-wiz 의존 누수 | `SourceItem`·`WorkersAiClient` 치환 체크리스트로 관리. |
+| R5: 예시 패키지가 루트 게이트 오염 | 워크스페이스 경계·tsconfig 분리, e2e만 런타임 격리(§10). |
+| R6: 범용 코어에 kr-history 결합 누수 | 코어(bridge·caller·orchestrator·call_mcp)는 도메인 타입 import 금지. 접지·페르소나·설정만 도메인 인지(§5.1). |
 
 ## 12. 후속 (별도 스펙)
-
-- **1.5단계**: 멀티모달 — 이미지 입력(고지도·금석문·한자 필사) → E2B 판독 → 코퍼스 교정 데모.
-- **2단계**: 브라우저 in-browser 번들(transformers.js+WebGPU), before/after 데모 웹앱 UI, 배포·전파.
+- **1.5단계**: `run_cli` 메타도구 + 보안 gate → 완전 범용(krh CLI·파일·git).
+- **2단계**: 멀티모달 이미지 접지.
+- **3단계**: 브라우저 in-browser 번들, before/after 데모 웹앱, 배포·전파.
+- **추출·제품화**: 범용 코어(bridge+caller+orchestrator+call_mcp)를 독립 패키지로 분리(실전 이식). 상업화 시 **차별점은 범용 브릿지 자체가 아니라 근거접지 가드레일(trust-principle) + 도메인 지식팩(kr-history 등) 번들** — 순수 범용 로컬 에이전트는 경쟁 밀집(Ollama tool calling·LM Studio·기존 프레임워크). "환각 없는 온디바이스 도메인 에이전트"가 판매 포지션. (검증=1단계 H1 이후.)
 
 ## 13. 참조
-
-- Gemma 4 E2B: [HF 모델카드](https://huggingface.co/google/gemma-4-E2B-it) · [Ollama gemma4:e2b](https://ollama.com/library/gemma4:e2b) · [Function calling with Gemma 4](https://ai.google.dev/gemma/docs/capabilities/text/function-calling-gemma4) · [WebGPU/transformers.js](https://huggingface.co/blog/gemma4)
+- Gemma 4 E2B: [HF 카드](https://huggingface.co/google/gemma-4-E2B-it) · [Ollama gemma4:e2b](https://ollama.com/library/gemma4:e2b) · [Function calling](https://ai.google.dev/gemma/docs/capabilities/text/function-calling-gemma4)
+- MCP: `@modelcontextprotocol/sdk`(Client·StdioClientTransport), 기존 krh-mcp 서버 `src/mcp/`
 - 재활용 원본: code-wiz `src/tooluse/{orchestrator,registry,types,sanitizeToolLeak}.ts`
 - 라이브러리 표면: `src/history-db.ts`(파사드), `src/mcp/tools.ts`(도구 계약)
