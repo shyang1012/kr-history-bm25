@@ -266,7 +266,7 @@ export class McpBridge {
 
 **핵심(스펙 §6.3):** `makeCallMcpTool(bridge, toolInfos, extractEvidence?)` — 팩토리로 콜백 주입(DIP), 도메인 타입 import 금지. handler 순서 = gate → args 런타임 검증(ajv, 발견 inputSchema) → callTool → extractEvidence push(예외 삼킴).
 
-- [ ] **Step 1: 실패 테스트** — mock bridge로: (a) 미발견 tool → gate 거부 `{error}`, (b) args 스키마 위반 → 구성실패 `{error}`, (c) 정상 → extractEvidence가 ctx.provided에 push, (d) extractEvidence throw → raw 유지·push 없음.
+- [ ] **Step 1: 실패 테스트** — mock bridge로: (a) 미발견 tool → `unknown-tool` `{error}`, (b) args 스키마 위반 → `invalid-args` `{error}`, (c) **미허용 server → `invalid-args` `{error}` 이며 `bridge.callTool` 미호출(Q-01 회귀)**, (d) 정상 → extractEvidence가 ctx.provided에 push + `success` emit, (e) extractEvidence throw → raw 유지·push 없음. 각 케이스에서 `onOutcome`이 해당 `CallOutcome`으로 호출되는지도 검증.
 
 ```ts
 it('args 스키마 위반은 구성실패', async () => {
@@ -320,6 +320,8 @@ export function makeCallMcpTool(bridge: McpBridge, toolInfos: ToolInfo[], opts: 
     cost:()=>1,
     handler: async (a:any, ctx:any) => {
       const emit = (outcome: CallOutcome) => opts.onOutcome?.({ tool: a?.tool, outcome });
+      // Q-01: server allow-list 런타임 검증(enum은 LLM 가이드일 뿐 강제 아님 — 미허용 서버가 bridge로 새지 않게)
+      if (!opts.serverIds.includes(a?.server)) { emit('invalid-args'); return { error:`unknown server: ${a?.server}` }; }
       const validate = validators.get(a?.tool);
       if (!validate) { emit('unknown-tool'); return { error:`unknown tool: ${a?.tool}` }; }
       if (!validate(a.args)) { emit('invalid-args'); return { error:`invalid args for ${a.tool}: ${ajv.errorsText(validate.errors)}` }; }
