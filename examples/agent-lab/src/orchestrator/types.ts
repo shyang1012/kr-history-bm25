@@ -57,6 +57,11 @@ export interface OrchestratorCaps {
   maxLoops: number;
   /** 도구별 호출 횟수 cap (절제된 grep 등). 미지정 = 무제한. */
   perToolCallCap?: Record<string, number>;
+  /**
+   * 🔴 도구 호출 실패(에러 result) 누적 상한. 소형 모델이 확률적으로 인자를 뭉개는 경우를 대비해
+   * 오류를 되먹여 재시도를 유도하되, 소진 시 정직히 마무리한다. 미지정 시 기본 10.
+   */
+  maxToolRetries?: number;
 }
 
 /** tool-use 실행 관측 지표 — 회귀 invariant. */
@@ -72,6 +77,8 @@ export interface ToolUseMetrics {
   truncatedByLatency: boolean;
   /** 🔴 응답 필터 하네스가 finalText에서 내부 도구 노출을 제거했는가 (관측·모니터링). */
   toolLeakStripped?: boolean;
+  /** 🔴 도구 호출 실패 재시도(maxToolRetries)가 소진돼 중단됐는가. */
+  retriesExhausted?: boolean;
   usage?: Record<string, number>;
 }
 

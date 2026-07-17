@@ -8,6 +8,9 @@
  *     - loop cap 가드레일: maxLoops 소진 시 truncatedByLoopCap = true
  *     - perToolCallCap: 도구별 호출 횟수 상한 (절제된 grep 등)
  *     - gate 통과 실패 / 미등록 도구 → tool result error (handler 미호출)
+ *     - 도구 실패 재시도: 소형 모델이 확률적으로 인자를 뭉개는 경우를 대비해 error result에 재시도 힌트를
+ *       되먹여(_retry_hint) 모델이 인자를 고쳐 다시 호출하게 한다. maxToolRetries(기본 10) 소진 시
+ *       retriesExhausted=true로 정직히 중단하고, 빈 finalText는 정직 마무리 문구로 대체한다.
  *   원본의 URL 환각검출 블록(offeredUrls/citedUrls/hallucinatedUrls)은 제거했다 — 도메인 무관 코어에는
  *   해당하지 않으며, agent 레이어의 접지 지표(grounding)가 대체한다.
  *   도구명 난독화(aliasOf/realOf)는 `obfuscateToolNames` 옵션으로 이식했다. 기본값 false — 본 하네스는
@@ -58,10 +61,12 @@ export class ToolUseAbortError extends Error {
  * 멀티라운드 tool-use 오케스트레이터.
  *   - callModel이 toolCalls=[] 를 반환하면 최종 답변으로 종료
  *   - maxLoops 소진 전 도구 호출 중이면 truncatedByLoopCap=true
+ *   - error result가 maxToolRetries(기본 10)만큼 누적되면 retriesExhausted=true로 조기 중단
  */
 export async function runToolUse(args: RunToolUseArgs): Promise<OrchestratorResult> {
   const { systemPrompt, userPrompt, tools, caps, callModel, ctx, history, onToolStart } = args;
   const obfuscate = args.obfuscateToolNames ?? false;
+  const maxToolRetries = caps.maxToolRetries ?? 10;
 
   // --- 메시지 초기화 (system → [멀티턴 history] → user) ---
   const messages: ChatMessage[] = [
@@ -110,6 +115,9 @@ export async function runToolUse(args: RunToolUseArgs): Promise<OrchestratorResu
 
   // --- budget spend 누적 (subrequestEstimate용) ---
   let budgetSpent = 0;
+
+  // --- 도구 실패 재시도 누적 (maxToolRetries 소진 판정용, 성공 호출은 무관) ---
+  let toolErrorCount = 0;
 
   let finalText = '';
 
@@ -205,12 +213,32 @@ export async function runToolUse(args: RunToolUseArgs): Promise<OrchestratorResu
         }
       }
 
+      // 🔴 error result면 재시도 카운트 + 모델에 인자 수정을 유도하는 힌트를 되먹인다.
+      const isError =
+        result !== null && typeof result === 'object' && 'error' in (result as object);
+      if (isError) {
+        toolErrorCount++;
+      }
+      const content = isError
+        ? JSON.stringify({
+            ...(result as Record<string, unknown>),
+            _retry_hint:
+              '도구 호출이 실패했습니다. 위 오류를 확인해 인자(args)를 수정한 뒤 같은 도구를 다시 호출하세요.',
+          })
+        : JSON.stringify(result);
+
       // tool result 메시지 추가
       messages.push({
         role: 'tool',
         tool_call_id: toolCall.id,
-        content: JSON.stringify(result),
+        content,
       });
+    }
+
+    // 🔴 재시도 소진 — 소형 모델이 인자를 계속 뭉개면 무한 루프 대신 정직히 중단한다.
+    if (toolErrorCount >= maxToolRetries) {
+      metrics.retriesExhausted = true;
+      break;
     }
 
     // 마지막 loop인데 도구 호출 중이었으면 loop cap 소진
@@ -222,6 +250,11 @@ export async function runToolUse(args: RunToolUseArgs): Promise<OrchestratorResu
   // --- 종료 후 metrics 확정 ---
   metrics.latencyMs = ctx.budget.elapsedMs();
   metrics.subrequestEstimate = metrics.modelCalls + budgetSpent;
+
+  // 🔴 정직 마무리 — 재시도·loop cap 소진으로 답을 못 만들었으면 침묵 대신 정직히 보고한다.
+  if (finalText === '' && (metrics.retriesExhausted || metrics.truncatedByLoopCap)) {
+    finalText = '도구를 여러 번 시도했으나 사용하지 못했습니다.';
+  }
 
   // 🔴 응답 필터 하네스 — finalText에 내부 도구 실명/opaque 호출이 새면 결정론적 제거.
   //   난독화(옵션 on) · 프롬프트 하드닝이 1차 차단, 본 필터가 backstop.
