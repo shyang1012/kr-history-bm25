@@ -5,9 +5,11 @@
  *   CallOutcome 계측(F-02)·접지 push. 범용 코어(도메인 무지) — Evidence 등 도메인 타입을
  *   import하지 않는다(F-01). run.ts가 makeCallMcpTool(bridge, toolInfos, opts)로 배선한다.
  *   소형 모델이 인자를 누락/변형해 도구가 빈 결과를 반환하면 "검색 결과 없음"으로 단정하는 사고를
- *   막기 위해, extractEvidence가 빈 배열을 반환하면 empty-result로 분리해 success와 절대 혼동하지
- *   않고 재시도 힌트(orchestrator의 기존 error 재먹임 경로)로 되돌린다. raw tool call·분기 outcome은
- *   ctx.log로 남겨 빈 결과가 데이터 부재인지 인자 씹음인지 구분할 수 있게 한다(관찰성).
+ *   막기 위해, extractEvidence가 정상 파싱 후 빈 배열을 반환하면 empty-result로 분리해 success와
+ *   절대 혼동하지 않고 재시도 힌트(orchestrator의 기존 error 재먹임 경로)로 되돌린다. 단 extractEvidence가
+ *   throw(어댑터 파싱 버그)하면 empty-result가 아니라 success+raw 유지 — 어댑터 결함을 도구 호출
+ *   실패로 오염시키지 않는다(F-01). raw tool call·분기 outcome은 ctx.log로 남겨 빈 결과가 데이터
+ *   부재인지 인자 씹음인지 구분할 수 있게 한다(관찰성).
  * @Author: shyang
  * @LastModified: 2026-07-17
  */
@@ -48,9 +50,10 @@ export interface CallMcpOpts {
 /**
  * MCP 도구를 균일하게 호출하는 메타 ToolSpec을 생성한다.
  *   handler 순서: server allow-list(Q-01) → tool 발견 → args 런타임 검증(ajv) → callTool →
- *   bridge-error 체크 → extractEvidence(1회) → empty-result 분리 또는 success + 접지 push.
- *   gate는 두지 않고 모든 분기를 onOutcome으로 계측한다(F-02). raw 호출·분기 outcome은 ctx.log로
- *   남겨 "빈 결과 vs 인자 씹음"을 사후 구분할 수 있게 한다.
+ *   bridge-error 체크 → extractEvidence(1회) → throw면 success+raw 유지(F-01) → 정상 반환 []이면
+ *   empty-result 분리 → 그 외 success + 접지 push. gate는 두지 않고 모든 분기를 onOutcome으로
+ *   계측한다(F-02). raw 호출·분기 outcome은 ctx.log로 남겨 "빈 결과 vs 인자 씹음"을 사후 구분할 수
+ *   있게 한다.
  */
 export function makeCallMcpTool(
   bridge: McpBridge,
@@ -112,13 +115,22 @@ export function makeCallMcpTool(
         return result;
       }
       // extractEvidence는 여기서 1회만 호출해 재사용한다(중복 호출 금지) — 결과로 success/empty-result 분기.
+      // 🔴 F-01: 어댑터 throw(파싱 버그)와 정상 반환 []( 근거 정말 없음)는 의미가 다르다 — throw는
+      // 어댑터 결함이라 raw에 데이터가 있을 수 있고 재시도해도 같은 버그가 반복되므로 success+raw로
+      // 유지한다. empty-result는 정상 파싱했는데 근거가 0건일 때만 성립한다.
       let evidence: unknown[] = [];
+      let extractFailed = false;
       if (opts.extractEvidence) {
         try {
           evidence = opts.extractEvidence(a.tool, result);
         } catch {
-          evidence = [];
+          extractFailed = true;
         }
+      }
+      if (extractFailed) {
+        emit('success');
+        ctx.log('  → success (extract 실패 — raw 유지)');
+        return result;
       }
       // 🔴 "검색 결과 없음"과 "도구 호출 실패"를 같은 상태로 취급하지 않는다 — 근거가 0건이면 empty-result로
       // 분리해 error를 되먹인다. orchestrator의 기존 재시도 경로('error' in result)가 _retry_hint를 붙여

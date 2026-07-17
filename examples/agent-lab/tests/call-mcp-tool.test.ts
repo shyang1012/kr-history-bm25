@@ -1,10 +1,11 @@
 /**
  * @Project: kr-history-bm25 (agent-lab)
  * @File: examples/agent-lab/tests/call-mcp-tool.test.ts
- * @Description: makeCallMcpTool(Task 5) 검증 — handler 5분기(미발견 tool·args 스키마 위반·
- *   미허용 server(Q-01)·정상 성공·extractEvidence throw) + bridge-error 정규화 + empty-result 분리
- *   (성공≠빈결과, 재시도 힌트용 receivedArgs 포함), 그리고 각 분기의 onOutcome CallOutcome
- *   계측(F-02)을 확인한다.
+ * @Description: makeCallMcpTool(Task 5) 검증 — handler 분기(미발견 tool·args 스키마 위반·미허용
+ *   server(Q-01)·정상 성공·extractEvidence throw) + bridge-error 정규화 + empty-result 분리(성공≠
+ *   빈결과, 재시도 힌트용 receivedArgs 포함)를 확인한다. extractEvidence throw(어댑터 버그)는
+ *   empty-result가 아니라 success+raw 유지임을 별도 케이스로 고정한다(F-01 — 어댑터 결함이 도구 호출
+ *   실패로 오염되지 않게). 그리고 각 분기의 onOutcome CallOutcome 계측(F-02)을 확인한다.
  * @Author: shyang
  * @LastModified: 2026-07-17
  */
@@ -101,7 +102,7 @@ describe('makeCallMcpTool', () => {
     expect(outcomes).toEqual([{ tool: 'search_han', outcome: 'success' }]);
   });
 
-  it('(e) extractEvidence throw → 예외 삼켜 evidence=[] 취급 → empty-result emit, push 없음', async () => {
+  it('(e) extractEvidence throw(어댑터 버그) → success + raw 유지, push 없음(empty-result 아님, F-01)', async () => {
     const rawResult = { content: [{ type: 'text', text: '[]' }] };
     const bridge: any = {
       callTool: vi.fn(async () => rawResult),
@@ -116,15 +117,13 @@ describe('makeCallMcpTool', () => {
       onOutcome: (r) => outcomes.push(r),
     });
     const ctx: any = makeCtx();
-    const args = { term: '樂浪' };
-    const result = await tool.handler({ server: 'krh', tool: 'search_han', args }, ctx);
-    expect(result).toEqual({
-      error: 'empty-result',
-      reason: 'EMPTY_RESULT_POSSIBLY_INVALID_ARGS',
-      receivedArgs: args,
-    });
+    const result = await tool.handler(
+      { server: 'krh', tool: 'search_han', args: { term: '樂浪' } },
+      ctx,
+    );
+    expect(result).toBe(rawResult);
     expect(ctx.provided).toEqual([]);
-    expect(outcomes).toEqual([{ tool: 'search_han', outcome: 'empty-result' }]);
+    expect(outcomes).toEqual([{ tool: 'search_han', outcome: 'success' }]);
   });
 
   it('bridge가 {error} 반환 → bridge-error emit + 그 결과 그대로 반환', async () => {
