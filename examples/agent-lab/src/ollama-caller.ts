@@ -11,6 +11,10 @@
  *     - OpenAI 호환: tool_calls[].function.arguments는 **문자열**(우리 argumentsJson과 그대로 대응).
  *     - 네이티브: tool_calls[].function.arguments는 **객체** — forward는 JSON.stringify, reverse는
  *       JSON.parse로 우리 argumentsJson(문자열) 규약을 유지한다.
+ *   **content-fallback(2026-07-17 R1 실측 추가)**: 소형/중형 모델(kanana 등)은 확률적으로 툴콜을
+ *   `tool_calls`가 아니라 `content`에 `{"name":..,"parameters":{...}}` 형태의 JSON 텍스트로 흘린다
+ *   (Ollama 파서가 못 잡는 narration). `parseToolCallFromContent`가 이를 복구하고, `applyContentFallback`이
+ *   두 경로 공통으로 적용한다 — 정상 tool_calls가 이미 있으면 미적용(정상 우선).
  *   범용 어댑터(도메인 무지) — run.ts가 AGENT_CONFIG.ollama로 orchestrator에 주입한다.
  * @Author: shyang
  * @LastModified: 2026-07-17
@@ -168,6 +172,67 @@ function toModelTurnFromNative(response: OllamaNativeChatResponse): ModelTurn {
   };
 }
 
+// --- content-fallback (확률적 narration에 흘린 툴콜 JSON 복구) ------------------------------
+
+/** content에서 첫 `{`~마지막 `}`를 추출해 파싱. 실패·비객체면 undefined. */
+function extractJsonObject(content: string): Record<string, unknown> | undefined {
+  const match = /\{[\s\S]*\}/.exec(content);
+  if (!match) {
+    return undefined;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(match[0]);
+  } catch {
+    return undefined;
+  }
+  if (typeof parsed !== 'object' || parsed === null) {
+    return undefined;
+  }
+  return parsed as Record<string, unknown>;
+}
+
+/**
+ * content(narration)에 흘린 `{"name":..,"parameters":{...}}`(또는 `arguments`) 형태의 툴콜 JSON을
+ * 복구한다. 신호(`parameters`/`arguments`)가 없으면 툴콜이 아니라 판단해 `[]`.
+ * name이 tools 목록과 일치하지 않으면(모델이 내부 도구명을 넣은 경우) `tools[0]`(메타도구)로 매핑한다.
+ */
+export function parseToolCallFromContent(content: string, tools: FunctionSchema[]): ToolCall[] {
+  if (content === '') {
+    return [];
+  }
+  const obj = extractJsonObject(content);
+  if (!obj) {
+    return [];
+  }
+  const params = obj.parameters ?? obj.arguments;
+  if (params === undefined) {
+    return [];
+  }
+  const parsedName = typeof obj.name === 'string' ? obj.name : undefined;
+  const knownNames = tools.map((t) => t.function.name);
+  let name: string;
+  if (parsedName !== undefined && knownNames.includes(parsedName)) {
+    name = parsedName;
+  } else {
+    const first = tools[0];
+    name = first ? first.function.name : (parsedName ?? 'call_mcp');
+  }
+  return [{ id: 'call_fb_0', name, argumentsJson: JSON.stringify(params) }];
+}
+
+/** 정상 tool_calls가 없을 때만 content-fallback을 적용(정상 우선). 적용 시 content는 비운다. */
+function applyContentFallback(turn: ModelTurn, tools: FunctionSchema[]): ModelTurn {
+  if (turn.toolCalls.length > 0) {
+    return turn;
+  }
+  const fallback = parseToolCallFromContent(turn.content, tools);
+  if (fallback.length === 0) {
+    return turn;
+  }
+  return { ...turn, toolCalls: fallback, content: '' };
+}
+
 // --- 공통 ---------------------------------------------------------------------------------
 
 const DEFAULT_BASE_URL = 'http://localhost:11434';
@@ -195,7 +260,7 @@ async function callOpenAiCompat(
   }
 
   const data = (await res.json()) as OpenAiChatCompletionResponse;
-  return toModelTurnFromOpenAi(data);
+  return applyContentFallback(toModelTurnFromOpenAi(data), tools);
 }
 
 /** 네이티브 /api/chat 호출 (think 제어 전용 fallback). */
@@ -223,7 +288,7 @@ async function callNative(
   }
 
   const data = (await res.json()) as OllamaNativeChatResponse;
-  return toModelTurnFromNative(data);
+  return applyContentFallback(toModelTurnFromNative(data), tools);
 }
 
 /**

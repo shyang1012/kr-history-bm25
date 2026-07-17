@@ -8,8 +8,13 @@
  * @LastModified: 2026-07-17
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { makeOllamaCaller } from '../src/ollama-caller';
+import { makeOllamaCaller, parseToolCallFromContent } from '../src/ollama-caller';
 import type { ChatMessage } from '../src/orchestrator/types';
+import type { FunctionSchema } from '../src/orchestrator/registry';
+
+const CALL_MCP_TOOLS: FunctionSchema[] = [
+  { type: 'function', function: { name: 'call_mcp', description: '', parameters: {} } },
+];
 
 describe('makeOllamaCaller', () => {
   afterEach(() => {
@@ -107,6 +112,58 @@ describe('makeOllamaCaller', () => {
       const caller = makeOllamaCaller({ baseUrl: 'http://x', model: 'gemma4:e2b' });
       await expect(caller([{ role: 'user', content: 'q' }], [])).rejects.toThrow(/500/);
     });
+
+    it('content-fallback: tool_calls가 비고 content에 툴콜 JSON이 흘렀으면 복구한다', async () => {
+      globalThis.fetch = (async () => ({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: '{"name":"call_mcp","parameters":{"tool":"search_han"}}',
+                tool_calls: [],
+              },
+            },
+          ],
+          usage: {},
+        }),
+      })) as unknown as typeof fetch;
+
+      const caller = makeOllamaCaller({ baseUrl: 'http://x', model: 'gemma4:e2b' });
+      const turn = await caller([{ role: 'user', content: 'q' }], CALL_MCP_TOOLS);
+
+      expect(turn.toolCalls).toHaveLength(1);
+      expect(turn.toolCalls[0]).toMatchObject({
+        name: 'call_mcp',
+        argumentsJson: '{"tool":"search_han"}',
+      });
+      expect(turn.content).toBe('');
+    });
+
+    it('content-fallback: 정상 tool_calls가 있으면 미적용(정상 우선)', async () => {
+      globalThis.fetch = (async () => ({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: '{"name":"call_mcp","parameters":{"tool":"search_han"}}',
+                tool_calls: [
+                  { id: 'c1', function: { name: 'call_mcp', arguments: '{"tool":"real"}' } },
+                ],
+              },
+            },
+          ],
+          usage: {},
+        }),
+      })) as unknown as typeof fetch;
+
+      const caller = makeOllamaCaller({ baseUrl: 'http://x', model: 'gemma4:e2b' });
+      const turn = await caller([{ role: 'user', content: 'q' }], CALL_MCP_TOOLS);
+
+      expect(turn.toolCalls).toHaveLength(1);
+      expect(turn.toolCalls[0]).toMatchObject({ id: 'c1', argumentsJson: '{"tool":"real"}' });
+    });
   });
 
   describe('네이티브 /api/chat 경로 (think 명시 — think 제어 fallback)', () => {
@@ -201,6 +258,41 @@ describe('makeOllamaCaller', () => {
 
       const caller = makeOllamaCaller({ baseUrl: 'http://x', model: 'gemma4:e2b', think: false });
       await expect(caller([{ role: 'user', content: 'q' }], [])).rejects.toThrow(/500/);
+    });
+  });
+
+  describe('parseToolCallFromContent (확률적 narration에 흘린 툴콜 JSON 복구)', () => {
+    it('parameters 필드가 있는 JSON을 툴콜로 복구', () => {
+      const content = '{"name":"call_mcp","parameters":{"server":"krh","tool":"search_han"}}';
+      const result = parseToolCallFromContent(content, CALL_MCP_TOOLS);
+
+      expect(result).toEqual([
+        {
+          id: 'call_fb_0',
+          name: 'call_mcp',
+          argumentsJson: JSON.stringify({ server: 'krh', tool: 'search_han' }),
+        },
+      ]);
+    });
+
+    it('name이 내부 도구명(search_han)이어도 tools=[call_mcp]면 call_mcp로 매핑', () => {
+      const content = '{"name":"search_han","parameters":{"server":"krh","tool":"search_han"}}';
+      const result = parseToolCallFromContent(content, CALL_MCP_TOOLS);
+
+      expect(result[0]).toMatchObject({ name: 'call_mcp' });
+    });
+
+    it('JSON이 없는 순수 텍스트면 []', () => {
+      expect(parseToolCallFromContent('그냥 답변입니다', CALL_MCP_TOOLS)).toEqual([]);
+    });
+
+    it('parameters/arguments가 없는 JSON이면 [] (툴콜 신호 아님)', () => {
+      const content = '{"name":"call_mcp","note":"이건 툴콜이 아님"}';
+      expect(parseToolCallFromContent(content, CALL_MCP_TOOLS)).toEqual([]);
+    });
+
+    it('빈 문자열이면 []', () => {
+      expect(parseToolCallFromContent('', CALL_MCP_TOOLS)).toEqual([]);
     });
   });
 });
