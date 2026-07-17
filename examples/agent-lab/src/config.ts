@@ -49,6 +49,9 @@ export const AGENT_CONFIG = {
   ollama: {
     baseUrl: 'http://localhost:11434',
     model: 'gemma4:e2b',
+    // gemma4:e2b는 thinking 모델(Gemini 계열) — think:true면 추론이 content/tool_call을 잠식하고
+    // 타임아웃 위험. think:false 명시로 네이티브 /api/chat fallback을 써 결정적 호출을 끌어낸다.
+    think: false,
   },
   caps: { maxLoops: 6 } satisfies OrchestratorCaps,
   krh: selectKrhSpec(process.env.AGENT_LAB_MCP),
