@@ -1,15 +1,16 @@
 /**
  * @Project: kr-history-bm25 (agent-lab)
  * @File: examples/agent-lab/src/ollama-caller.ts
- * @Description: 신규① OllamaModelCaller — Ollama 네이티브 /api/chat 어댑터(ModelCaller 구현).
- *   gemma4:e2b 등 thinking 모델은 `think:false`가 OpenAI 호환 /v1/chat/completions에서는 무시되고
- *   네이티브 /api/chat에서만 작동함이 경험적으로 확인되어(2026-07-17 R1 재실험), 엔드포인트를
- *   네이티브로 전환했다(기존 /v1/chat/completions 어댑터 대체).
- *   우리 ChatMessage/ToolCall ↔ 네이티브 메시지 형식 양방향 매핑을 담당한다:
- *     - forward: 네이티브 응답 message.tool_calls[].function.arguments(객체) → ToolCall.argumentsJson(문자열,
- *       JSON.stringify)
- *     - reverse: assistant 메시지의 ToolCall.argumentsJson(문자열) → 네이티브 tool_calls[].function.arguments
- *       (객체, JSON.parse)
+ * @Description: 신규① OllamaModelCaller — OpenAI 호환 /v1/chat/completions 어댑터(ModelCaller 구현).
+ *   **표준(primary)**: OpenAI 호환 경로 — 다른 OpenAI 호환 프로바이더에도 이식 가능해 기본으로 둔다.
+ *   **fallback**: 네이티브 /api/chat — `think:false`가 OpenAI 호환 경로에서는 무시되고 네이티브에서만
+ *   작동함이 경험적으로 확인되어(2026-07-17 R1 재실험), gemma4:e2b 등 thinking 모델의 think 제어가
+ *   필요한 경우(`cfg.think`가 명시된 경우)에만 네이티브로 전환한다.
+ *   분기: `cfg.think === undefined` → OpenAI 호환(표준). `cfg.think`가 true/false로 명시 → 네이티브 fallback.
+ *   두 경로 모두 우리 ChatMessage/ToolCall ↔ 각 형식 양방향 매핑을 수행하고 동일한 ModelTurn을 반환한다:
+ *     - OpenAI 호환: tool_calls[].function.arguments는 **문자열**(우리 argumentsJson과 그대로 대응).
+ *     - 네이티브: tool_calls[].function.arguments는 **객체** — forward는 JSON.stringify, reverse는
+ *       JSON.parse로 우리 argumentsJson(문자열) 규약을 유지한다.
  *   범용 어댑터(도메인 무지) — run.ts가 AGENT_CONFIG.ollama로 orchestrator에 주입한다.
  * @Author: shyang
  * @LastModified: 2026-07-17
@@ -18,27 +19,94 @@
 import type { FunctionSchema } from './orchestrator/registry';
 import type { ChatMessage, ModelCaller, ModelTurn, ToolCall } from './orchestrator/types';
 
-/** makeOllamaCaller 설정. baseUrl 미지정 시 로컬 Ollama 기본 포트. think 미지정 시 false(추론 비노출). */
+/**
+ * makeOllamaCaller 설정. baseUrl 미지정 시 로컬 Ollama 기본 포트.
+ * think 미지정(undefined) = OpenAI 호환 경로(표준). think 명시(true/false) = 네이티브 /api/chat fallback.
+ */
 export interface OllamaCallerConfig {
   baseUrl?: string;
   model: string;
   think?: boolean;
 }
 
-/** 네이티브 /api/chat tool_call (요청 body 직렬화용). arguments는 객체(문자열 아님). */
-interface OllamaToolCall {
+// --- OpenAI 호환 경로 (표준) ---------------------------------------------------------------
+
+/** OpenAI 호환 tool_call (요청 body 직렬화용). arguments는 문자열. */
+interface OpenAiToolCall {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
+/** OpenAI 호환 메시지 (요청 body 직렬화용). */
+interface OpenAiMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content?: string | null;
+  tool_calls?: OpenAiToolCall[];
+  tool_call_id?: string;
+}
+
+/** /v1/chat/completions 응답 최소 형태 (필요한 필드만 좁혀 any 회피). */
+interface OpenAiChatCompletionResponse {
+  choices?: Array<{
+    message?: {
+      content?: string | null;
+      tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }>;
+    };
+  }>;
+  usage?: Record<string, number>;
+}
+
+/** reverse: 우리 ToolCall → OpenAI tool_calls 원소. */
+function toOpenAiToolCall(toolCall: ToolCall): OpenAiToolCall {
+  return {
+    id: toolCall.id,
+    type: 'function',
+    function: { name: toolCall.name, arguments: toolCall.argumentsJson },
+  };
+}
+
+/** reverse: 우리 ChatMessage[] → OpenAI 호환 메시지[]. */
+function toOpenAiMessages(messages: ChatMessage[]): OpenAiMessage[] {
+  return messages.map((m) => ({
+    role: m.role,
+    content: m.content ?? '',
+    tool_calls: m.tool_calls?.map(toOpenAiToolCall),
+    tool_call_id: m.tool_call_id,
+  }));
+}
+
+/** forward: OpenAI 응답 message → 우리 ModelTurn. */
+function toModelTurnFromOpenAi(response: OpenAiChatCompletionResponse): ModelTurn {
+  const message = response.choices?.[0]?.message;
+  const toolCalls: ToolCall[] = (message?.tool_calls ?? []).map((tc) => ({
+    id: tc.id,
+    name: tc.function.name,
+    argumentsJson: tc.function.arguments,
+  }));
+  return {
+    content: message?.content ?? '',
+    toolCalls,
+    usage: response.usage,
+  };
+}
+
+// --- 네이티브 /api/chat 경로 (think 제어 전용 fallback) --------------------------------------
+
+/** 네이티브 tool_call (요청 body 직렬화용). arguments는 객체(문자열 아님). */
+interface OllamaNativeToolCall {
   function: { name: string; arguments: Record<string, unknown> };
 }
 
-/** 네이티브 /api/chat 메시지 (요청 body 직렬화용). tool 결과는 content만(tool_call_id 불필요). */
-interface OllamaMessage {
+/** 네이티브 메시지 (요청 body 직렬화용). tool 결과는 content만(tool_call_id 불필요). */
+interface OllamaNativeMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content?: string | null;
-  tool_calls?: OllamaToolCall[];
+  tool_calls?: OllamaNativeToolCall[];
 }
 
-/** /api/chat 응답 최소 형태 (필요한 필드만 좁혀 any 회피). */
-interface OllamaChatResponse {
+/** 네이티브 /api/chat 응답 최소 형태 (필요한 필드만 좁혀 any 회피). */
+interface OllamaNativeChatResponse {
   message?: {
     content?: string | null;
     tool_calls?: Array<{
@@ -50,10 +118,8 @@ interface OllamaChatResponse {
   eval_count?: number;
 }
 
-const DEFAULT_BASE_URL = 'http://localhost:11434';
-
 /** reverse: 우리 ToolCall(argumentsJson=문자열) → 네이티브 tool_call(arguments=객체). 파싱 실패 시 {}. */
-function toOllamaToolCall(toolCall: ToolCall): OllamaToolCall {
+function toOllamaNativeToolCall(toolCall: ToolCall): OllamaNativeToolCall {
   let args: Record<string, unknown> = {};
   try {
     args = JSON.parse(toolCall.argumentsJson || '{}') as Record<string, unknown>;
@@ -64,16 +130,16 @@ function toOllamaToolCall(toolCall: ToolCall): OllamaToolCall {
 }
 
 /** reverse: 우리 ChatMessage[] → 네이티브 메시지[]. */
-function toOllamaMessages(messages: ChatMessage[]): OllamaMessage[] {
+function toOllamaNativeMessages(messages: ChatMessage[]): OllamaNativeMessage[] {
   return messages.map((m) => ({
     role: m.role,
     content: m.content ?? '',
-    tool_calls: m.tool_calls?.map(toOllamaToolCall),
+    tool_calls: m.tool_calls?.map(toOllamaNativeToolCall),
   }));
 }
 
 /** 네이티브 usage(prompt_eval_count/eval_count) → 우리 usage. 둘 다 없으면 undefined. */
-function toUsage(response: OllamaChatResponse): Record<string, number> | undefined {
+function toUsageFromNative(response: OllamaNativeChatResponse): Record<string, number> | undefined {
   if (response.prompt_eval_count === undefined && response.eval_count === undefined) {
     return undefined;
   }
@@ -88,7 +154,7 @@ function toUsage(response: OllamaChatResponse): Record<string, number> | undefin
 }
 
 /** forward: 네이티브 응답 message → 우리 ModelTurn. */
-function toModelTurn(response: OllamaChatResponse): ModelTurn {
+function toModelTurnFromNative(response: OllamaNativeChatResponse): ModelTurn {
   const message = response.message;
   const toolCalls: ToolCall[] = (message?.tool_calls ?? []).map((tc, i) => ({
     id: tc.id ?? `call_${i}`,
@@ -98,36 +164,80 @@ function toModelTurn(response: OllamaChatResponse): ModelTurn {
   return {
     content: message?.content ?? '',
     toolCalls,
-    usage: toUsage(response),
+    usage: toUsageFromNative(response),
   };
 }
 
+// --- 공통 ---------------------------------------------------------------------------------
+
+const DEFAULT_BASE_URL = 'http://localhost:11434';
+
+/** OpenAI 호환 /v1/chat/completions 호출 (표준 경로). */
+async function callOpenAiCompat(
+  baseUrl: string,
+  model: string,
+  messages: ChatMessage[],
+  tools: FunctionSchema[],
+): Promise<ModelTurn> {
+  const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages: toOpenAiMessages(messages),
+      tools,
+      tool_choice: 'auto',
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`ollama call failed: ${res.status} ${await res.text()}`);
+  }
+
+  const data = (await res.json()) as OpenAiChatCompletionResponse;
+  return toModelTurnFromOpenAi(data);
+}
+
+/** 네이티브 /api/chat 호출 (think 제어 전용 fallback). */
+async function callNative(
+  baseUrl: string,
+  model: string,
+  messages: ChatMessage[],
+  tools: FunctionSchema[],
+  think: boolean,
+): Promise<ModelTurn> {
+  const res = await fetch(`${baseUrl}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages: toOllamaNativeMessages(messages),
+      tools,
+      think,
+      stream: false,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`ollama call failed: ${res.status} ${await res.text()}`);
+  }
+
+  const data = (await res.json()) as OllamaNativeChatResponse;
+  return toModelTurnFromNative(data);
+}
+
 /**
- * Ollama 네이티브 /api/chat 기반 ModelCaller. think 기본 false(gemma4:e2b 등 thinking 모델의 추론이
- * content/tool_call을 잠식하는 것을 막는다). 응답 !ok 시 상태코드·본문을 담아 throw한다.
+ * Ollama ModelCaller. `cfg.think`가 undefined면 OpenAI 호환 /v1/chat/completions(표준),
+ * 명시(true/false)면 네이티브 /api/chat(think 제어 fallback)을 사용한다.
+ * 응답 !ok 시 상태코드·본문을 담아 throw한다.
  */
 export function makeOllamaCaller(cfg: OllamaCallerConfig): ModelCaller {
   const baseUrl = cfg.baseUrl ?? DEFAULT_BASE_URL;
-  const think = cfg.think ?? false;
 
   return async (messages: ChatMessage[], tools: FunctionSchema[]): Promise<ModelTurn> => {
-    const res = await fetch(`${baseUrl}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: cfg.model,
-        messages: toOllamaMessages(messages),
-        tools,
-        think,
-        stream: false,
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`ollama call failed: ${res.status} ${await res.text()}`);
+    if (cfg.think === undefined) {
+      return callOpenAiCompat(baseUrl, cfg.model, messages, tools);
     }
-
-    const data = (await res.json()) as OllamaChatResponse;
-    return toModelTurn(data);
+    return callNative(baseUrl, cfg.model, messages, tools, cfg.think);
   };
 }
