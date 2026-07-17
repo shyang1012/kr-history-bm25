@@ -37,10 +37,9 @@
 - Create: `examples/agent-lab/package.json`, `examples/agent-lab/tsconfig.json`, `examples/agent-lab/README.md`
 - Modify: 루트 `package.json`(workspaces에 `examples/agent-lab` 추가 — 이미 workspaces면 배열에 추가, 없으면 신설), 루트 `tsconfig`(참조 또는 include 확인)
 
-- [ ] **Step 1: 루트 workspaces 확인**
+- [ ] **Step 1: 루트 workspaces 신설 (F-03)**
 
-Run: `node -e "console.log(JSON.stringify(require('./package.json').workspaces))"`
-Expected: 기존 workspaces 배열 또는 `undefined`. `undefined`면 `"workspaces": ["examples/*"]` 추가. 배열이면 `examples/*` 포함 확인.
+확인됨(2026-07-17): 루트 `workspaces`는 **undefined** — 신설 필요. 루트 `package.json`에 `"workspaces": ["examples/*"]` 추가(이게 있어야 `"kr-history-bm25": "workspace:*"` 의존이 해석됨). 추가 후 `npm install`로 lockfile 갱신.
 
 - [ ] **Step 2: agent-lab package.json 작성**
 
@@ -55,22 +54,28 @@ Expected: 기존 workspaces 배열 또는 `undefined`. `undefined`면 `"workspac
   },
   "dependencies": {
     "kr-history-bm25": "workspace:*",
-    "@modelcontextprotocol/sdk": "*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "ajv": "^8"
   },
   "devDependencies": { "tsx": "*", "vitest": "*", "typescript": "*" }
 }
 ```
-(정확한 버전은 루트 devDependencies와 정렬. `@modelcontextprotocol/sdk`는 루트에 이미 존재 — 동일 버전 사용.)
+**(F-04)** `@modelcontextprotocol/sdk`는 루트와 동일 `^1.29.0`으로 고정(`"*"` 금지 — 재현성). ajv는 루트에 이미 설치돼 있으나 예제 dependency로 명시. tsx/vitest/typescript 버전은 루트 devDependencies와 정렬.
 
 - [ ] **Step 3: tsconfig.json 작성** — 루트 tsconfig extends, `"include": ["src", "eval", "tests"]`, strict 유지.
 
 - [ ] **Step 4: README.md 골격** — 목적 1문단 + 실행 전제(`ollama pull gemma4:e2b`, 루트 `npm run build`로 `dist/mcp/server.js` 생성), 실행법(`npm run agent -- "질의"`).
 
-- [ ] **Step 5: 설치·타입 확인**
+- [ ] **Step 5: 루트 게이트에 agent-lab 편입 (F-03)**
 
-Run: `npm install && npx tsc -p examples/agent-lab/tsconfig.json --noEmit`
-Expected: 에러 없음(빈 src라 통과, 또는 no inputs 경고 시 placeholder 후 재실행).
+루트 `validate = lint && format:check && typecheck && test`는 현재 `tsconfig include:["src"]`·vitest `tests/**`만 대상이라 예제가 통째로 빠진다(확인됨). 다음을 설정:
+- agent-lab `package.json`에 `"typecheck": "tsc --noEmit -p tsconfig.json"` 추가.
+- 루트 `package.json` `validate` 끝에 workspace 게이트 집계 추가 — `&& npm run -w @kr-history/agent-lab typecheck && npm run -w @kr-history/agent-lab test`.
+- ESLint: 루트 `tsconfig.eslint.json` include(`["src","tests","*.ts"]`)에 `"examples/agent-lab/**/*.ts"` 추가(또는 예제 자체 eslint config).
+- **포함 검증(필수)**: agent-lab에 고의 타입오류 파일 하나 두고 루트 `npm run validate`가 **실제로 실패**하는지 1회 확인 후 오류 제거.
+
+Run: `npm install && npm run validate`
+Expected: agent-lab 포함해 통과(고의 오류 삽입 시 실패로 편입 증명).
 
 - [ ] **Step 6: 착수 0스텝 — 모델 가용성 확인**
 
@@ -91,8 +96,8 @@ Expected: 모델 다운로드 성공.
 **이식 규칙(중요):**
 1. 4개 파일 복사 후 헤더를 `@Project: kr-history-bm25 (agent-lab)` / `@Description: code-wiz cw-owt9 이식(2026-07-17)` / `@Author: shyang`로 교체.
 2. code-wiz 고유 의존 제거:
-   - `types.ts`: `import { SourceItem } from '../schemas/sourceReferences'` 제거. `OrchestratorResult.providedSources: SourceItem[]` → `Evidence[]`(신규 `grounding.ts`에서 import, Task 2 후 연결). 임시로 `unknown[]`로 두고 Task 2에서 확정.
-   - `registry.ts`: `SourceItem` → `Evidence`. `ToolUseEnv`의 검색 API 키 필드 제거(불필요). `ToolContext.provided: Evidence[]`.
+   - `types.ts`: `import { SourceItem } from '../schemas/sourceReferences'` 제거. **(F-01: R6 격리)** `OrchestratorResult.providedSources`를 **`unknown[]`(도메인 중립)** 로 확정 — 코어는 `Evidence` 타입을 **영구히 모른다**. `Evidence`는 `grounding.ts`(에이전트 레이어)에만 존재하며, 소비 시점에만 캐스팅한다.
+   - `registry.ts`: `SourceItem` import 제거. **`ToolContext.provided: unknown[]`(도메인 중립)** — Evidence import 금지. `ToolUseEnv`의 검색 API 키 필드 제거(불필요).
    - `orchestrator.ts`: **URL 환각검출 블록 전부 제거** — `URL_RE`, `extractUrls()`, `metrics.offeredUrls/citedUrls/hallucinatedUrls` 관련 라인(원본 27–34, 230–239). `ToolUseMetrics`에서 URL 필드 제거(Task 2에서 접지 지표로 대체). 도구명 난독화(aliasOf/realOf)는 유지(범용 가드).
 3. `sanitize-tool-leak.ts`: code-wiz 의존 없음 — 헤더만 교체.
 
@@ -173,7 +178,7 @@ export function checkGrounding(finalText: string, offered: Evidence[]): Groundin
 }
 ```
 
-- [ ] **Step 4: 통과 확인** + **Step 5: Task 1의 `Evidence[]` 임시 타입을 이 `Evidence`로 연결**(types.ts/registry.ts import) · 재컴파일 통과.
+- [ ] **Step 4: 통과 확인** + **Step 5(F-01): 코어는 `unknown[]` 유지 — `Evidence`를 `types.ts`/`registry.ts`에 연결하지 않는다.** `grounding.ts`의 `Evidence`는 에이전트 레이어(call_mcp 어댑터·`checkGrounding` 캐스팅)에서만 쓴다. 재컴파일 통과.
 
 - [ ] **Step 6: Commit** — `git commit -m "feat(agent-lab): GroundingChecker + Evidence(id 인용 접지)"`
 
@@ -285,38 +290,51 @@ it('정상 호출은 extractEvidence로 접지', async () => {
 
 - [ ] **Step 2: 실패 확인** · **Step 3: 구현**
 
+**F-01(server 주입)·F-02(outcome 계측) 반영.** `extractEvidence`는 `unknown[]` 반환(코어는 Evidence 무지). gate를 제거하고 **모든 분기를 handler에서 계측**(orchestrator는 handler를 항상 실행하므로 unknown-tool/invalid-args/bridge-error/success 전 분류가 집계 가능). Step 1 테스트도 아래 opts 시그니처로 작성.
+
 ```ts
 import Ajv from 'ajv';
 import type { ToolSpec } from './orchestrator/registry';
-import type { Evidence } from './grounding';
 import type { McpBridge, ToolInfo } from './mcp-bridge';
-export type EvidenceExtractor = (toolName: string, result: unknown) => Evidence[];
-export function makeCallMcpTool(bridge: McpBridge, toolInfos: ToolInfo[], extractEvidence?: EvidenceExtractor): ToolSpec {
+// F-01: Evidence 타입 import 금지 — 콜백은 unknown[] 반환(도메인은 배선에서 캐스팅)
+export type CallOutcome = 'success' | 'unknown-tool' | 'invalid-args' | 'bridge-error';
+export interface CallRecord { tool: string; outcome: CallOutcome; }
+export interface CallMcpOpts {
+  serverIds: string[];                                            // F-01: config 주입(하드코딩 금지)
+  extractEvidence?: (tool: string, result: unknown) => unknown[];  // 도메인 콜백(코어는 unknown[])
+  onOutcome?: (rec: CallRecord) => void;                          // F-02: 계측 sink(run/report가 배선)
+}
+export function makeCallMcpTool(bridge: McpBridge, toolInfos: ToolInfo[], opts: CallMcpOpts): ToolSpec {
   const ajv = new Ajv({ allErrors:true, strict:false });
   const validators = new Map(toolInfos.map((t)=>[t.name, ajv.compile(t.inputSchema)]));
   const toolList = toolInfos.map((t)=>`- ${t.name}: ${t.description}`).join('\n');
   return {
     name:'call_mcp',
-    description:`MCP 도구를 호출한다. 사용 가능한 도구:\n${toolList}\n인자는 각 도구 스키마를 따른다.`,
+    description:`MCP 도구를 호출한다. 사용 가능한 도구:\n${toolList}`,
     parameters:{ type:'object', properties:{
-      server:{ type:'string', enum:['krh'] },
+      server:{ type:'string', enum: opts.serverIds },              // F-01: 주입된 서버 집합
       tool:{ type:'string', enum: toolInfos.map((t)=>t.name) },
       args:{ type:'object' },
     }, required:['server','tool','args'] },
-    gate:(a:any)=> validators.has(a?.tool) ? {ok:true} : {ok:false, reason:`unknown tool: ${a?.tool}`},
+    // gate 제거(F-02): 모든 분기를 handler에서 계측. orchestrator는 handler를 항상 실행.
     cost:()=>1,
     handler: async (a:any, ctx:any) => {
-      const validate = validators.get(a.tool);
-      if (validate && !validate(a.args)) return { error:`invalid args for ${a.tool}: ${ajv.errorsText(validate.errors)}` };
-      const result = await bridge.callTool(a.server, a.tool, a.args ?? {});
-      if (extractEvidence) {
-        try { ctx.provided.push(...extractEvidence(a.tool, result)); } catch { /* 어댑터 예외 삼킴: 측정 무결성 */ }
+      const emit = (outcome: CallOutcome) => opts.onOutcome?.({ tool: a?.tool, outcome });
+      const validate = validators.get(a?.tool);
+      if (!validate) { emit('unknown-tool'); return { error:`unknown tool: ${a?.tool}` }; }
+      if (!validate(a.args)) { emit('invalid-args'); return { error:`invalid args for ${a.tool}: ${ajv.errorsText(validate.errors)}` }; }
+      const result: any = await bridge.callTool(a.server, a.tool, a.args ?? {});
+      if (result && typeof result === 'object' && 'error' in result) { emit('bridge-error'); return result; }
+      emit('success');
+      if (opts.extractEvidence) {
+        try { ctx.provided.push(...opts.extractEvidence(a.tool, result)); } catch { /* 어댑터 예외 삼킴 */ }
       }
       return result;
     },
   };
 }
 ```
+**계측 계약(F-02)**: `CallOutcome` 4분류가 §8-#1·§9 지표의 분모/분자다 — 구성실패율 = `(unknown-tool + invalid-args) / 총 call_mcp 시도`, 도구호출 성공률 = `success / (success + bridge-error)`.
 
 - [ ] **Step 4: 통과 확인** · **Step 5: Commit** — `git commit -m "feat(agent-lab): call_mcp 팩토리(콜백 주입·args 검증·접지 push)"`
 
@@ -370,14 +388,14 @@ it('cluster 결과는 surface만', () => {
 
 **Files:** Create `src/run.ts`
 
-- [ ] **Step 1: 구현** — 배선 조립:
+- [ ] **Step 1: 구현** — 배선 조립(도메인 인지는 여기·어댑터·페르소나에만 = R6):
   1. `bridge = new McpBridge(); await bridge.connect(AGENT_CONFIG.krh)`.
   2. `toolInfos = bridge.listTools('krh')`.
-  3. `callMcp = makeCallMcpTool(bridge, toolInfos, krHistoryExtractEvidence)`.
+  3. `const outcomes: CallRecord[] = []; const callMcp = makeCallMcpTool(bridge, toolInfos, { serverIds: ['krh'], extractEvidence: krHistoryExtractEvidence, onOutcome: (r)=>outcomes.push(r) })` **(F-01 serverIds 주입 + F-02 계측 sink 배선)**.
   4. `caller = makeOllamaCaller(AGENT_CONFIG.ollama)`.
-  5. **after** = `runToolUse({ systemPrompt: buildPersona(toolInfos), userPrompt: query, tools:[callMcp], caps, callModel: caller, ctx })` → `checkGrounding(finalText, ctx.provided)`.
+  5. **after** = `runToolUse({ systemPrompt: buildPersona(toolInfos), userPrompt: query, tools:[callMcp], caps, callModel: caller, ctx })` → `checkGrounding(finalText, ctx.provided as Evidence[])` **(코어 provided=unknown[]을 도메인 레이어에서 캐스팅, F-01)**.
   6. **before** = 동일 caller로 도구 없이 1턴 호출(대조).
-  7. before/after + GroundingReport를 stdout 출력. `finally { await bridge.close() }`.
+  7. before/after + GroundingReport + `outcomes`(CallOutcome 집계)를 stdout 출력. `finally { await bridge.close() }`.
 
 - [ ] **Step 2: 수동 스모크(선택, Ollama 필요)** — Run: `npm run build && npm run agent -w @kr-history/agent-lab -- "낙랑은 어디였나"` · Expected: before(도구없음)·after(call_mcp 호출·[id] 인용)·접지 리포트 출력. (실패 시 R1 관찰 기록.)
 
@@ -391,7 +409,12 @@ it('cluster 결과는 surface만', () => {
 
 - [ ] **Step 1: queries.json** — discovery 시드 기반(sg/sy 범위): 樂浪 공기·遼水 용법·鴨綠 지명·일반 사료 질의 5~8개. 각 항목 `{ id, query, expectTools?, note }`.
 
-- [ ] **Step 2: report.ts** — 각 질의를 run 파이프라인으로 실행, §8 지표 집계(메타도구 구성 성공률·도구호출 성공률·`[id]` 인용률·미접지 id율·surface 접지 라벨) → 표(마크다운/콘솔) 출력. before/after 비교 열.
+- [ ] **Step 2: report.ts** — 각 질의를 run 파이프라인(`outcomes` sink 포함)으로 실행, §8 지표 집계 → 표(마크다운/콘솔) + before/after 비교 열. **F-02 집계식(CallOutcome 기반)**:
+  - 메타도구 구성 실패율 = `(unknown-tool + invalid-args) / 총 call_mcp 시도` (목표 < 15%)
+  - 도구호출 성공률 = `success / (success + bridge-error)`
+  - `[id]` 인용률 = `checkGrounding.citedIds.length>0` 질의 비율
+  - 미접지 id율 = `Σ ungroundedIds / Σ citedIds`
+  - surface 접지 = `surfaceHits` 정성 라벨
 
 - [ ] **Step 3: 타입 확인** · **Step 4: Commit** — `git commit -m "feat(agent-lab): eval 질의셋 + 측정 리포트"`
 
