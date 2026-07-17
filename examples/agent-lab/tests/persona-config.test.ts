@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { buildPersona } from '../src/persona';
-import { selectKrhSpec } from '../src/config';
+import { selectKrhSpec, parseThink } from '../src/config';
 
 describe('buildPersona', () => {
   const toolInfos = [
@@ -45,5 +45,18 @@ describe('selectKrhSpec', () => {
 
   it("'dev' → krhDev(node)", () => {
     expect(selectKrhSpec('dev').command).toBe('node');
+  });
+});
+
+describe('parseThink', () => {
+  it("'true' → true", () => {
+    expect(parseThink('true')).toBe(true);
+  });
+  it("'false' → false", () => {
+    expect(parseThink('false')).toBe(false);
+  });
+  it('undefined·기타 → undefined(OpenAI 호환)', () => {
+    expect(parseThink(undefined)).toBeUndefined();
+    expect(parseThink('yes')).toBeUndefined();
   });
 });

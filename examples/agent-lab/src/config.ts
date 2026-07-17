@@ -44,14 +44,35 @@ export function selectKrhSpec(mode: string | undefined): McpServerSpec {
   return mode === 'product' ? krhProduct : krhDev;
 }
 
-/** run.ts가 소비하는 부팅 설정 — ollama 백엔드 + orchestrator caps + krh MCP 서버 스펙. */
+/**
+ * AGENT_LAB_THINK 환경변수를 think 설정으로 파싱한다. 'true'/'false'만 각 boolean으로,
+ * 미지정·기타 값은 undefined(= OpenAI 호환 primary 경로). thinking 모델(gemma4:e2b 계열)은
+ * 'false'로 네이티브 fallback을, 함수호출 특화 instruct 모델(kanana 등)은 미지정으로 OpenAI 호환을 쓴다.
+ *
+ * @param raw process.env.AGENT_LAB_THINK 값
+ * @returns true | false | undefined
+ */
+export function parseThink(raw: string | undefined): boolean | undefined {
+  if (raw === 'true') {
+    return true;
+  }
+  if (raw === 'false') {
+    return false;
+  }
+  return undefined;
+}
+
+/**
+ * run.ts가 소비하는 부팅 설정 — ollama 백엔드 + orchestrator caps + krh MCP 서버 스펙.
+ * 모델 비교 실험(gemma4:e2b/e4b·kanana 등)을 위해 model·think·baseUrl을 환경변수로 오버라이드한다:
+ *   AGENT_LAB_MODEL(기본 gemma4:e2b) · AGENT_LAB_THINK('true'|'false', 미지정=OpenAI 호환) ·
+ *   AGENT_LAB_OLLAMA_URL(기본 localhost:11434).
+ */
 export const AGENT_CONFIG = {
   ollama: {
-    baseUrl: 'http://localhost:11434',
-    model: 'gemma4:e2b',
-    // gemma4:e2b는 thinking 모델(Gemini 계열) — think:true면 추론이 content/tool_call을 잠식하고
-    // 타임아웃 위험. think:false 명시로 네이티브 /api/chat fallback을 써 결정적 호출을 끌어낸다.
-    think: false,
+    baseUrl: process.env.AGENT_LAB_OLLAMA_URL ?? 'http://localhost:11434',
+    model: process.env.AGENT_LAB_MODEL ?? 'gemma4:e2b',
+    think: parseThink(process.env.AGENT_LAB_THINK),
   },
   caps: { maxLoops: 6 } satisfies OrchestratorCaps,
   krh: selectKrhSpec(process.env.AGENT_LAB_MCP),
