@@ -4,6 +4,10 @@
  * @Description: 신규③ call_mcp 메타 ToolSpec 팩토리 — 콜백 주입(DIP)·args 런타임 검증(ajv)·
  *   CallOutcome 계측(F-02)·접지 push. 범용 코어(도메인 무지) — Evidence 등 도메인 타입을
  *   import하지 않는다(F-01). run.ts가 makeCallMcpTool(bridge, toolInfos, opts)로 배선한다.
+ *   소형 모델이 인자를 누락/변형해 도구가 빈 결과를 반환하면 "검색 결과 없음"으로 단정하는 사고를
+ *   막기 위해, extractEvidence가 빈 배열을 반환하면 empty-result로 분리해 success와 절대 혼동하지
+ *   않고 재시도 힌트(orchestrator의 기존 error 재먹임 경로)로 되돌린다. raw tool call·분기 outcome은
+ *   ctx.log로 남겨 빈 결과가 데이터 부재인지 인자 씹음인지 구분할 수 있게 한다(관찰성).
  * @Author: shyang
  * @LastModified: 2026-07-17
  */
@@ -12,8 +16,13 @@ import type { ToolSpec, ToolContext } from './orchestrator/registry';
 import type { McpBridge, ToolInfo } from './mcp-bridge';
 
 // F-01: Evidence 타입 import 금지 — 콜백은 unknown[] 반환(도메인은 배선에서 캐스팅)
-/** call_mcp handler 분기 계측(F-02) — §8·§9 지표의 분모/분자. */
-export type CallOutcome = 'success' | 'unknown-tool' | 'invalid-args' | 'bridge-error';
+/**
+ * call_mcp handler 분기 계측(F-02) — §8·§9 지표의 분모/분자.
+ *   empty-result는 도구 호출 자체는 성공(bridge-error 아님)했으나 extractEvidence가 근거를 하나도
+ *   못 건진 경우다 — success와 절대 같은 상태로 취급하지 않는다(빈 결과 ≠ 성공).
+ */
+export type CallOutcome =
+  'success' | 'unknown-tool' | 'invalid-args' | 'bridge-error' | 'empty-result';
 
 /** onOutcome 콜백에 전달되는 계측 1건. */
 export interface CallRecord {
@@ -39,8 +48,9 @@ export interface CallMcpOpts {
 /**
  * MCP 도구를 균일하게 호출하는 메타 ToolSpec을 생성한다.
  *   handler 순서: server allow-list(Q-01) → tool 발견 → args 런타임 검증(ajv) → callTool →
- *   bridge-error 체크 → success + extractEvidence push(예외 삼킴). gate는 두지 않고 모든 분기를
- *   onOutcome으로 계측한다(F-02).
+ *   bridge-error 체크 → extractEvidence(1회) → empty-result 분리 또는 success + 접지 push.
+ *   gate는 두지 않고 모든 분기를 onOutcome으로 계측한다(F-02). raw 호출·분기 outcome은 ctx.log로
+ *   남겨 "빈 결과 vs 인자 씹음"을 사후 구분할 수 있게 한다.
  */
 export function makeCallMcpTool(
   bridge: McpBridge,
@@ -93,19 +103,38 @@ export function makeCallMcpTool(
         emit('invalid-args');
         return { error: `invalid args for ${a.tool}: ${ajv.errorsText(validate.errors)}` };
       }
+      // 원본 tool call 로깅(관찰성) — 빈 결과가 데이터 부재인지 인자 씹음인지 사후 구분 가능하게.
+      ctx.log(`[call_mcp] tool=${a.tool} args=${JSON.stringify(a.args)}`);
       const result: unknown = await bridge.callTool(a.server, a.tool, a.args ?? {});
       if (result && typeof result === 'object' && 'error' in result) {
         emit('bridge-error');
+        ctx.log('  → bridge-error');
         return result;
       }
-      emit('success');
+      // extractEvidence는 여기서 1회만 호출해 재사용한다(중복 호출 금지) — 결과로 success/empty-result 분기.
+      let evidence: unknown[] = [];
       if (opts.extractEvidence) {
         try {
-          ctx.provided.push(...opts.extractEvidence(a.tool, result));
+          evidence = opts.extractEvidence(a.tool, result);
         } catch {
-          /* 어댑터 예외 삼킴 */
+          evidence = [];
         }
       }
+      // 🔴 "검색 결과 없음"과 "도구 호출 실패"를 같은 상태로 취급하지 않는다 — 근거가 0건이면 empty-result로
+      // 분리해 error를 되먹인다. orchestrator의 기존 재시도 경로('error' in result)가 _retry_hint를 붙여
+      // 모델에 되돌려주므로, 모델이 receivedArgs를 보고 인자를 고쳐 재호출할 수 있다.
+      if (opts.extractEvidence && evidence.length === 0) {
+        emit('empty-result');
+        ctx.log('  → empty-result (인자 의심)');
+        return {
+          error: 'empty-result',
+          reason: 'EMPTY_RESULT_POSSIBLY_INVALID_ARGS',
+          receivedArgs: a.args,
+        };
+      }
+      emit('success');
+      ctx.log(`  → success (${evidence.length} evidence)`);
+      ctx.provided.push(...evidence);
       return result;
     },
   };

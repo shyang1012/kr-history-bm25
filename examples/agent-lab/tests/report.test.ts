@@ -1,8 +1,9 @@
 /**
  * @Project: kr-history-bm25 (agent-lab)
  * @File: examples/agent-lab/tests/report.test.ts
- * @Description: aggregateMetrics(Task 9) 검증 — 메타도구 구성 실패율·도구호출 성공률·[id] 인용률·
- *   미접지 id율 공식을 합성 입력(MetricRow[])으로 확인한다. runQuery/Ollama는 호출하지 않는다.
+ * @Description: aggregateMetrics(Task 9) 검증 — 메타도구 구성 실패율·도구호출 성공률·빈결과율(empty-result
+ *   분리, 성공≠빈결과)·[id] 인용률·미접지 id율 공식을 합성 입력(MetricRow[])으로 확인한다. runQuery/Ollama는
+ *   호출하지 않는다.
  * @Author: shyang
  * @LastModified: 2026-07-17
  */
@@ -31,6 +32,24 @@ describe('aggregateMetrics', () => {
     ];
     const summary = aggregateMetrics(rows);
     expect(summary.toolCallSuccessRate).toBeCloseTo(2 / 3);
+  });
+
+  it('도구호출 성공률·빈결과율 = empty-result는 success에서 제외(성공≠빈결과)', () => {
+    const rows: MetricRow[] = [
+      {
+        grounding: grounding([], []),
+        outcomes: [
+          { tool: 'search_han', outcome: 'success' },
+          { tool: 'search_han', outcome: 'empty-result' },
+          { tool: 'search_han', outcome: 'empty-result' },
+          { tool: 'search_han', outcome: 'bridge-error' },
+        ],
+      },
+    ];
+    const summary = aggregateMetrics(rows);
+    // successDenom = success(1) + bridgeError(1) + emptyResult(2) = 4
+    expect(summary.toolCallSuccessRate).toBeCloseTo(1 / 4);
+    expect(summary.emptyResultRate).toBeCloseTo(2 / 4);
   });
 
   it('메타도구 구성 실패율 = (unknown-tool + invalid-args) / 총 시도', () => {
@@ -69,10 +88,11 @@ describe('aggregateMetrics', () => {
     expect(summary.ungroundedIdRate).toBeCloseTo(2 / 4);
   });
 
-  it('시도·질의가 0건이면 분모 0 케이스는 관례대로 처리(실패율 0, 성공률 1, 인용률 0, 미접지율 0)', () => {
+  it('시도·질의가 0건이면 분모 0 케이스는 관례대로 처리(실패율 0, 성공률 1, 빈결과율 0, 인용률 0, 미접지율 0)', () => {
     const summary = aggregateMetrics([]);
     expect(summary.toolConfigFailureRate).toBe(0);
     expect(summary.toolCallSuccessRate).toBe(1);
+    expect(summary.emptyResultRate).toBe(0);
     expect(summary.citationRate).toBe(0);
     expect(summary.ungroundedIdRate).toBe(0);
   });

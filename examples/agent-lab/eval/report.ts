@@ -3,7 +3,8 @@
  * @File: examples/agent-lab/eval/report.ts
  * @Description: eval 리포트 — F-02 지표 집계(aggregateMetrics 순수함수) + queries.json 구동 스크립트.
  *   aggregateMetrics는 MetricRow[](각 질의의 grounding·outcomes)로부터 메타도구 구성 실패율·도구호출
- *   성공률·[id] 인용률·미접지 id율·surface 접지 정성 라벨을 계산하는 순수 함수(테스트 가능, Task 9 Step 3).
+ *   성공률·빈결과율·[id] 인용률·미접지 id율·surface 접지 정성 라벨을 계산하는 순수 함수(테스트 가능,
+ *   Task 9 Step 3). empty-result는 성공 분모/분자에서 제외해 "빈 결과 ≠ 성공"을 지표로 강제한다.
  *   하단 실행 스크립트는 queries.json을 로드해 runQuery로 각 질의를 실행하고 집계 결과를 출력한다
  *   (import.meta.url 가드 — import 시 부작용 없음, 직접 실행 시에만 구동). 진단은 console.error.
  * @Author: shyang
@@ -38,12 +39,17 @@ export interface MetricRow {
   outcomes: CallRecord[];
 }
 
-/** aggregateMetrics 출력 — §8·§9 지표 5종. */
+/** aggregateMetrics 출력 — §8·§9 지표 6종. */
 export interface ReportSummary {
   /** (unknown-tool + invalid-args) / 총 call_mcp 시도. 시도 0이면 0. */
   toolConfigFailureRate: number;
-  /** success / (success + bridge-error). 분모 0이면 1(호출 자체가 없으면 실패도 없다는 관례상 vacuous). */
+  /**
+   * success / (success + bridge-error + empty-result). 분모 0이면 1(호출 자체가 없으면 실패도 없다는
+   * 관례상 vacuous). empty-result(근거 0건)는 성공으로 세지 않는다 — 빈 결과 ≠ 성공.
+   */
   toolCallSuccessRate: number;
+  /** empty-result / 총 call_mcp 시도. 시도 0이면 0 — 인자 씹음으로 빈 결과가 나온 비율. */
+  emptyResultRate: number;
   /** citedIds가 1개 이상인 질의 수 / 총 질의 수. */
   citationRate: number;
   /** Σ ungroundedIds.length / Σ citedIds.length. Σcited가 0이면 0. */
@@ -63,6 +69,7 @@ export function aggregateMetrics(rows: MetricRow[]): ReportSummary {
   let configFailures = 0;
   let success = 0;
   let bridgeError = 0;
+  let emptyResult = 0;
   let citedQueries = 0;
   let citedTotal = 0;
   let ungroundedTotal = 0;
@@ -78,6 +85,8 @@ export function aggregateMetrics(rows: MetricRow[]): ReportSummary {
         success += 1;
       } else if (outcome.outcome === 'bridge-error') {
         bridgeError += 1;
+      } else if (outcome.outcome === 'empty-result') {
+        emptyResult += 1;
       }
     }
     if (row.grounding.citedIds.length > 0) {
@@ -92,13 +101,17 @@ export function aggregateMetrics(rows: MetricRow[]): ReportSummary {
   }
 
   const toolConfigFailureRate = totalAttempts > 0 ? configFailures / totalAttempts : 0;
-  const toolCallSuccessRate = success + bridgeError > 0 ? success / (success + bridgeError) : 1;
+  // empty-result(근거 0건)는 도구 호출 실패는 아니지만 성공으로도 세지 않는다 — 별도 분모 참여.
+  const successDenom = success + bridgeError + emptyResult;
+  const toolCallSuccessRate = successDenom > 0 ? success / successDenom : 1;
+  const emptyResultRate = totalAttempts > 0 ? emptyResult / totalAttempts : 0;
   const citationRate = rows.length > 0 ? citedQueries / rows.length : 0;
   const ungroundedIdRate = citedTotal > 0 ? ungroundedTotal / citedTotal : 0;
 
   return {
     toolConfigFailureRate,
     toolCallSuccessRate,
+    emptyResultRate,
     citationRate,
     ungroundedIdRate,
     surfaceGrounding: { hitCount, surfaces: [...surfaces] },
@@ -115,6 +128,7 @@ function formatReportMarkdown(summary: ReportSummary): string {
   const rows = [
     ['메타도구 구성 실패율', pct(summary.toolConfigFailureRate)],
     ['도구호출 성공률', pct(summary.toolCallSuccessRate)],
+    ['빈결과율', pct(summary.emptyResultRate)],
     ['[id] 인용률', pct(summary.citationRate)],
     ['미접지 id율', pct(summary.ungroundedIdRate)],
     ['surface 접지(개수)', String(summary.surfaceGrounding.hitCount)],
