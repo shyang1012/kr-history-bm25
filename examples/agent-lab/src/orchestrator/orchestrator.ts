@@ -268,6 +268,12 @@ export async function runToolUse(args: RunToolUseArgs): Promise<OrchestratorResu
   }
   finalText = guard.text;
 
+  // 🔴 fail-safe — leak strip 등으로 답이 비면 절대 빈 문자열을 반환하지 않는다(정직 마무리 보장).
+  //   모델이 도구 호출을 텍스트로 흉내 내다 leak strip으로 통째 제거된 경우 등을 침묵 대신 정직 보고로 덮는다.
+  if (finalText.trim() === '') {
+    finalText = '근거를 찾지 못해 답변을 생성하지 못했습니다.';
+  }
+
   return {
     finalText,
     providedSources: ctx.provided,
