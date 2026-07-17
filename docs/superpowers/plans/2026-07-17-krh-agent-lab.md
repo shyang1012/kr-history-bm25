@@ -33,13 +33,15 @@
 
 ## Task 0: 워크스페이스 스캐폴딩
 
+**착수 절차(bd):** 구현 시작 시 `bd show krh-izc`로 맥락 확인 후 `bd update krh-izc --claim`으로 원자적 클레임. 이하 체크박스(`- [ ]`)는 **계획 명세용 마커**이며, 실제 진행 상태는 bd에 기록한다(AGENTS.md 규율 — TodoWrite·markdown TODO 금지).
+
 **Files:**
-- Create: `examples/agent-lab/package.json`, `examples/agent-lab/tsconfig.json`, `examples/agent-lab/README.md`
-- Modify: 루트 `package.json`(workspaces에 `examples/agent-lab` 추가 — 이미 workspaces면 배열에 추가, 없으면 신설), 루트 `tsconfig`(참조 또는 include 확인)
+- Create: `examples/agent-lab/package.json`, `examples/agent-lab/tsconfig.json`, `examples/agent-lab/README.md`, `examples/agent-lab/.eslintrc.cjs`(#4 로컬 lint config)
+- Modify: 루트 `package.json`(workspaces 신설 `["examples/*"]` + `validate` 끝에 예제 게이트 집계), 루트 `tsconfig`(참조 또는 include 확인)
 
 - [ ] **Step 1: 루트 workspaces 신설 (F-03)**
 
-확인됨(2026-07-17): 루트 `workspaces`는 **undefined** — 신설 필요. 루트 `package.json`에 `"workspaces": ["examples/*"]` 추가(이게 있어야 `"kr-history-bm25": "workspace:*"` 의존이 해석됨). 추가 후 `npm install`로 lockfile 갱신.
+확인됨(2026-07-17): 루트 `workspaces`는 **undefined** — 신설 필요. 루트 `package.json`에 `"workspaces": ["examples/*"]` 추가(이게 있어야 루트 `validate`가 `npm run -w @kr-history/agent-lab …`로 예제 게이트를 집계할 수 있다 = Step 5·#4). ※ `kr-history-bm25` workspace 의존은 두지 않으므로(#1, Step 2) 의존 해석 목적은 아니다. 추가 후 `npm install`로 lockfile 갱신.
 
 - [ ] **Step 2: agent-lab package.json 작성**
 
@@ -49,33 +51,42 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint": "eslint src tests eval --ext .ts",
+    "format:check": "prettier --check \"{src,tests,eval}/**/*.{ts,json}\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
+    "validate": "npm run lint && npm run format:check && npm run typecheck && npm run test",
     "agent": "tsx src/run.ts"
   },
   "dependencies": {
-    "kr-history-bm25": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "ajv": "^8"
   },
-  "devDependencies": { "tsx": "*", "vitest": "*", "typescript": "*" }
+  "devDependencies": { "tsx": "*", "vitest": "*", "typescript": "*", "eslint": "*", "prettier": "*" }
 }
 ```
 **(F-04)** `@modelcontextprotocol/sdk`는 루트와 동일 `^1.29.0`으로 고정(`"*"` 금지 — 재현성). ajv는 루트에 이미 설치돼 있으나 예제 dependency로 명시. tsx/vitest/typescript 버전은 루트 devDependencies와 정렬.
+**(#1 workspace 의존 제거)** `"kr-history-bm25": "workspace:*"` 의존은 **두지 않는다** — 접지 어댑터(Task 6)는 kr-history 타입을 import하지 않고 krh-mcp 결과 JSON을 인라인 타입으로 파싱하므로 runtime 의존이 불필요하다. (착수 시 어댑터가 실제로 `SearchHit` 등 타입 참조를 원하면 그때 `import type`용 devDependency로만 되살린다.) MCP 서버는 dev 프로파일=로컬 빌드 산출, product 프로파일=npx 배포판으로 붙이므로(Task 7) 패키지 의존과 무관.
+**(#4 자기완결 게이트)** agent-lab은 lint·format:check·typecheck·test 4종 스크립트를 **자체 보유**하고 루트 `validate`가 `npm run -w`로 집계한다(Step 5). 소스(비테스트) 파일은 `no-explicit-any`(루트 규칙 상속)를 지켜야 하므로 `any` 대신 `unknown`+내로잉·정확한 타입을 쓴다(Task 4·5 코드블록 반영).
 
 - [ ] **Step 3: tsconfig.json 작성** — 루트 tsconfig extends, `"include": ["src", "eval", "tests"]`, strict 유지.
 
-- [ ] **Step 4: README.md 골격** — 목적 1문단 + 실행 전제(`ollama pull gemma4:e2b`, 루트 `npm run build`로 `dist/mcp/server.js` 생성), 실행법(`npm run agent -- "질의"`).
+- [ ] **Step 4: README.md 골격** — 목적 1문단 + **2모드 실행 전제(#1)**:
+  - 공통: `ollama pull gemma4:e2b`.
+  - **dev 모드**(`AGENT_LAB_MCP=dev`, 기본): 루트 `npm run build`로 `dist/mcp/server.js` 생성 후 `node`로 붙임 — 개발 소스 그대로 관찰.
+  - **product 모드**(`AGENT_LAB_MCP=product`): `npx -y -p kr-history-bm25 krh-mcp` 배포판(현 0.5.0)을 붙임 — 빌드 불필요, Claude·Codex 동일 환경 안정성 검증.
+  - 실행법(`AGENT_LAB_MCP=product npm run agent -- "질의"`). **채팅 드롭인 관찰포인트**: 간단 질의를 던졌을 때 배포판 MCP로 근거 응답이 나오는지(제품 UX)를 정성 관찰 항목으로 기록.
 
-- [ ] **Step 5: 루트 게이트에 agent-lab 편입 (F-03)**
+- [ ] **Step 5: 루트 게이트에 agent-lab 편입 (F-03·#4)**
 
-루트 `validate = lint && format:check && typecheck && test`는 현재 `tsconfig include:["src"]`·vitest `tests/**`만 대상이라 예제가 통째로 빠진다(확인됨). 다음을 설정:
-- agent-lab `package.json`에 `"typecheck": "tsc --noEmit -p tsconfig.json"` 추가.
-- 루트 `package.json` `validate` 끝에 workspace 게이트 집계 추가 — `&& npm run -w @kr-history/agent-lab typecheck && npm run -w @kr-history/agent-lab test`.
-- ESLint: 루트 `tsconfig.eslint.json` include(`["src","tests","*.ts"]`)에 `"examples/agent-lab/**/*.ts"` 추가(또는 예제 자체 eslint config).
-- **포함 검증(필수)**: agent-lab에 고의 타입오류 파일 하나 두고 루트 `npm run validate`가 **실제로 실패**하는지 1회 확인 후 오류 제거.
+루트 `validate = lint && format:check && typecheck && test`는 현재 `format:check` 글롭=`src/**`·`tests/**`(package.json:83), `tsconfig include:["src"]`, vitest `tests/**`만 대상이라 예제가 **lint·prettier·tsc·test 전부 빠진다**(확인됨). **워크스페이스 자기완결 게이트**로 편입한다(예제가 자기 파일 책임 → 루트 글롭·`tsconfig.eslint.json` 수정 불필요):
+- agent-lab `package.json`에 lint·format:check·typecheck·test + 이를 묶는 `validate` 스크립트(Step 2에 기재).
+- agent-lab **자체 `.eslintrc.cjs`**(루트 extends) — 소스는 `no-explicit-any` 준수, **`overrides: { files:['tests/**/*.ts'], rules:{ '@typescript-eslint/no-explicit-any':'off' } }`** 포함(테스트 `any` 허용, 소스 금지). 루트 override(`files:['tests/**']`)는 예제 하위 경로를 확실히 매칭 못 하므로 예제 로컬 config가 필요.
+- 루트 `package.json` `validate` 끝에 `&& npm run -w @kr-history/agent-lab validate` 집계(4종 전부 예제에도 적용).
+- **포함 검증(필수)**: agent-lab에 고의 타입오류(또는 `any`) 파일 하나 두고 루트 `npm run validate`가 **실제로 실패**하는지 1회 확인 후 제거 — lint·prettier·tsc 각각 편입됐는지 확인.
 
 Run: `npm install && npm run validate`
-Expected: agent-lab 포함해 통과(고의 오류 삽입 시 실패로 편입 증명).
+Expected: agent-lab의 lint·format:check·typecheck·test 포함해 통과(고의 오류 삽입 시 실패로 편입 증명).
 
 - [ ] **Step 6: 착수 0스텝 — 모델 가용성 확인**
 
@@ -98,7 +109,7 @@ Expected: 모델 다운로드 성공.
 2. code-wiz 고유 의존 제거:
    - `types.ts`: `import { SourceItem } from '../schemas/sourceReferences'` 제거. **(F-01: R6 격리)** `OrchestratorResult.providedSources`를 **`unknown[]`(도메인 중립)** 로 확정 — 코어는 `Evidence` 타입을 **영구히 모른다**. `Evidence`는 `grounding.ts`(에이전트 레이어)에만 존재하며, 소비 시점에만 캐스팅한다.
    - `registry.ts`: `SourceItem` import 제거. **`ToolContext.provided: unknown[]`(도메인 중립)** — Evidence import 금지. `ToolUseEnv`의 검색 API 키 필드 제거(불필요).
-   - `orchestrator.ts`: **URL 환각검출 블록 전부 제거** — `URL_RE`, `extractUrls()`, `metrics.offeredUrls/citedUrls/hallucinatedUrls` 관련 라인(원본 27–34, 230–239). `ToolUseMetrics`에서 URL 필드 제거(Task 2에서 접지 지표로 대체). 도구명 난독화(aliasOf/realOf)는 유지(범용 가드).
+   - `orchestrator.ts`: **URL 환각검출 블록 전부 제거** — `URL_RE`, `extractUrls()`, `metrics.offeredUrls/citedUrls/hallucinatedUrls` 관련 라인(원본 27–34, 230–239). `ToolUseMetrics`에서 URL 필드 제거(Task 2에서 접지 지표로 대체). **도구명 난독화(aliasOf/realOf)는 `obfuscateToolNames?: boolean`(RunToolUseArgs) 옵션으로 이식하고 agent-lab에선 기본 off.** 이유: 원본 orchestrator(code-wiz `orchestrator.ts:74–93`)는 도구를 `t1,t2…` opaque ID로 바꿔 **모델엔 t1만 노출**하는데, 본 하네스 페르소나·few-shot은 `call_mcp` 실명 호출을 가르친다 → 소형 E2B에 스키마명↔지시 모순(치명). call_mcp는 공개 범용 메타도구라 은닉 이유도 없다. off 시 `functionSchemas`=실명, dispatch 역매핑은 no-op(항등). 기본값을 false로 두어 별도 지시 없이 실명 노출.
 3. `sanitize-tool-leak.ts`: code-wiz 의존 없음 — 헤더만 교체.
 
 - [ ] **Step 1: 4개 파일 복사 + 헤더 교체 + 의존 제거** (위 규칙)
@@ -152,10 +163,11 @@ it('offered에 없는 [id]는 미접지(환각 후보)', () => {
   expect(r.ungroundedIds).toEqual([99]);
 });
 it('surface 접지는 정성 라벨', () => {
-  const r = checkGrounding('樂浪 이야기', [{ passageId:1, hanSurface:'樂浪郡' }]);
-  expect(r.surfaceHits).toContain('樂浪');
+  const r = checkGrounding('樂浪郡 이야기', [{ passageId:1, hanSurface:'樂浪郡' }]);
+  expect(r.surfaceHits).toContain('樂浪郡');
 });
 ```
+> **#3 교정(2026-07-17 재판정):** 원안은 `finalText='樂浪 이야기'`·`hanSurface='樂浪郡'`에서 `toContain('樂浪')`을 기대했으나, 구현(Step 3)은 `finalText.includes(hanSurface)` = `'樂浪 이야기'.includes('樂浪郡')`=false → `surfaceHits=[]`로 Red→Green이 성립하지 않는다. **전체 surface `includes` 매칭에 맞춰 테스트를 교정**한다(구현 불변). 부분표기 매칭은 별도 규칙을 도입하지 않는다(YAGNI).
 
 - [ ] **Step 2: 실패 확인** — Run: `npm test -w @kr-history/agent-lab -- grounding` · Expected: FAIL(checkGrounding 미정의).
 
@@ -239,7 +251,8 @@ export class McpBridge {
     await client.connect(transport);
     const { tools } = await client.listTools();
     this.clients.set(spec.id, client);
-    this.toolsByServer.set(spec.id, tools.map((t:any)=>({ name:t.name, description:t.description??'', inputSchema:t.inputSchema??{} })));
+    // #4: any 금지 — listTools() 반환은 SDK가 타입 제공. 필요한 필드만 안전 추출.
+    this.toolsByServer.set(spec.id, tools.map((t)=>({ name:t.name, description:t.description??'', inputSchema:(t.inputSchema??{}) as Record<string,unknown> })));
   }
   listTools(serverId?: string): ToolInfo[] {
     if (serverId) return this.toolsByServer.get(serverId) ?? [];
@@ -248,13 +261,21 @@ export class McpBridge {
   async callTool(serverId: string, name: string, args: Record<string,unknown>): Promise<unknown> {
     const client = this.clients.get(serverId);
     if (!client) return { error:`unknown server: ${serverId}` };
-    try { return await client.callTool({ name, arguments: args }); }
+    try {
+      const r = await client.callTool({ name, arguments: args });
+      // isError 정규화(보완): MCP 도구레벨 오류는 throw 없이 { isError:true, content } 로 온다.
+      // 이를 { error } 로 바꿔 call_mcp handler가 bridge-error로 계수하게 한다(측정 무결성).
+      if (r && typeof r === 'object' && (r as { isError?: boolean }).isError) {
+        return { error: 'tool error', content: (r as { content?: unknown }).content };
+      }
+      return r;
+    }
     catch (e) { return { error: String(e) }; }
   }
   async close(): Promise<void> { for (const c of this.clients.values()) await c.close(); this.clients.clear(); }
 }
 ```
-**SDK API 확인 완료(2026-07-17, `@modelcontextprotocol/sdk@1.29.0`)**: `Client`(`client/index.js`)·`StdioClientTransport`(`client/stdio.js`) import 경로 유효, 인스턴스 메서드 `connect`/`listTools`/`callTool`/`close` 존재. `callTool({ name, arguments })` 반환은 `{ content:[{type:'text',text}] }`(Task 6 파싱 전제와 일치). `listTools()`는 `{ tools:[{name,description,inputSchema}] }`.
+**SDK API 확인 완료(2026-07-17, `@modelcontextprotocol/sdk@1.29.0`)**: `Client`(`client/index.js`)·`StdioClientTransport`(`client/stdio.js`) import 경로 유효, 인스턴스 메서드 `connect`/`listTools`/`callTool`/`close` 존재. `callTool({ name, arguments })` 반환은 성공 시 `{ content:[{type:'text',text}] }`, **도구레벨 오류 시 `{ isError:true, content:[…] }`(throw 아님)** — 위 정규화가 이를 `{error}`로 바꾼다. `listTools()`는 `{ tools:[{name,description,inputSchema}] }`.
 
 - [ ] **Step 4: 통과 확인** · **Step 5: Commit** — `git commit -m "feat(agent-lab): McpBridge(MCP SDK 클라이언트, 에러 정규화)"`
 
@@ -294,17 +315,19 @@ it('정상 호출은 extractEvidence로 접지', async () => {
 
 ```ts
 import Ajv from 'ajv';
-import type { ToolSpec } from './orchestrator/registry';
+import type { ToolSpec, ToolContext } from './orchestrator/registry';
 import type { McpBridge, ToolInfo } from './mcp-bridge';
 // F-01: Evidence 타입 import 금지 — 콜백은 unknown[] 반환(도메인은 배선에서 캐스팅)
 export type CallOutcome = 'success' | 'unknown-tool' | 'invalid-args' | 'bridge-error';
 export interface CallRecord { tool: string; outcome: CallOutcome; }
+// #4: any 금지 — call_mcp 인자 형상을 명시(orchestrator가 이 shape로 TArgs 전달).
+export interface CallMcpArgs { server: string; tool: string; args: Record<string, unknown>; }
 export interface CallMcpOpts {
   serverIds: string[];                                            // F-01: config 주입(하드코딩 금지)
   extractEvidence?: (tool: string, result: unknown) => unknown[];  // 도메인 콜백(코어는 unknown[])
   onOutcome?: (rec: CallRecord) => void;                          // F-02: 계측 sink(run/report가 배선)
 }
-export function makeCallMcpTool(bridge: McpBridge, toolInfos: ToolInfo[], opts: CallMcpOpts): ToolSpec {
+export function makeCallMcpTool(bridge: McpBridge, toolInfos: ToolInfo[], opts: CallMcpOpts): ToolSpec<CallMcpArgs> {
   const ajv = new Ajv({ allErrors:true, strict:false });
   const validators = new Map(toolInfos.map((t)=>[t.name, ajv.compile(t.inputSchema)]));
   const toolList = toolInfos.map((t)=>`- ${t.name}: ${t.description}`).join('\n');
@@ -318,14 +341,14 @@ export function makeCallMcpTool(bridge: McpBridge, toolInfos: ToolInfo[], opts: 
     }, required:['server','tool','args'] },
     // gate 제거(F-02): 모든 분기를 handler에서 계측. orchestrator는 handler를 항상 실행.
     cost:()=>1,
-    handler: async (a:any, ctx:any) => {
-      const emit = (outcome: CallOutcome) => opts.onOutcome?.({ tool: a?.tool, outcome });
+    handler: async (a: CallMcpArgs, ctx: ToolContext): Promise<unknown> => {
+      const emit = (outcome: CallOutcome): void => opts.onOutcome?.({ tool: a?.tool, outcome });
       // Q-01: server allow-list 런타임 검증(enum은 LLM 가이드일 뿐 강제 아님 — 미허용 서버가 bridge로 새지 않게)
       if (!opts.serverIds.includes(a?.server)) { emit('invalid-args'); return { error:`unknown server: ${a?.server}` }; }
       const validate = validators.get(a?.tool);
       if (!validate) { emit('unknown-tool'); return { error:`unknown tool: ${a?.tool}` }; }
       if (!validate(a.args)) { emit('invalid-args'); return { error:`invalid args for ${a.tool}: ${ajv.errorsText(validate.errors)}` }; }
-      const result: any = await bridge.callTool(a.server, a.tool, a.args ?? {});
+      const result: unknown = await bridge.callTool(a.server, a.tool, a.args ?? {});
       if (result && typeof result === 'object' && 'error' in result) { emit('bridge-error'); return result; }
       emit('success');
       if (opts.extractEvidence) {
@@ -336,7 +359,8 @@ export function makeCallMcpTool(bridge: McpBridge, toolInfos: ToolInfo[], opts: 
   };
 }
 ```
-**계측 계약(F-02)**: `CallOutcome` 4분류가 §8-#1·§9 지표의 분모/분자다 — 구성실패율 = `(unknown-tool + invalid-args) / 총 call_mcp 시도`, 도구호출 성공률 = `success / (success + bridge-error)`.
+> **#4 타입 주의:** `ToolSpec<TArgs=Record<string,unknown>, TResult=unknown>`(code-wiz `registry.ts:129`)의 제네릭을 사용해 `handler:(a:CallMcpArgs, ctx:ToolContext)`로 명시(source `any` 0). 이식된 `registry.ts`의 `ToolContext.provided`는 F-01대로 `unknown[]`이므로 `ctx.provided.push(...unknown[])` 정합. Task 5 Step 1 테스트의 `ctx:any`·`as any`는 테스트 파일이라 eslint override(#4)로 허용.
+**계측 계약(F-02)**: `CallOutcome` 4분류가 §8-#1·§9 지표의 분모/분자다 — 구성실패율 = `(unknown-tool + invalid-args) / 총 call_mcp 시도`, 도구호출 성공률 = `success / (success + bridge-error)`. **`bridge-error`에는 (a) McpBridge가 throw를 정규화한 `{error}`와 (b) MCP 도구레벨 `{isError:true}`를 정규화한 `{error}`(Task 4 보완)가 모두 집계된다** — 즉 도구가 실패를 반환한 경우도 성공으로 오계수되지 않는다.
 
 - [ ] **Step 4: 통과 확인** · **Step 5: Commit** — `git commit -m "feat(agent-lab): call_mcp 팩토리(콜백 주입·args 검증·접지 push)"`
 
@@ -359,6 +383,10 @@ it('cluster 결과는 surface만', () => {
   const mcp = { content:[{ type:'text', text: JSON.stringify([{ type:'지명', surface:'遼東', count:58 }]) }] };
   expect(krHistoryExtractEvidence('cluster', mcp)).toEqual([{ hanSurface:'遼東' }]);
 });
+it('place_clusters는 clusters[].members[].surface 추출', () => {
+  const mcp = { content:[{ type:'text', text: JSON.stringify({ clusters:[{ members:[{ surface:'樂浪' }, { surface:'帶方' }] }] }) }] };
+  expect(krHistoryExtractEvidence('place_clusters', mcp)).toEqual([{ hanSurface:'樂浪' }, { hanSurface:'帶方' }]);
+});
 ```
 
 - [ ] **Step 2: 실패 확인** · **Step 3: 구현** — `parseMcpText(result)`(`result.content[0].text` → `JSON.parse`, 실패 시 throw) + 도구별 정규화. **반환 구조 확인 완료(2026-07-17)**:
@@ -378,7 +406,11 @@ it('cluster 결과는 surface만', () => {
 
 - [ ] **Step 1: persona.ts** — `buildPersona(toolInfos): string`. `trust-principle`·context.md 규약(근거 없이 단정 금지·도구 결과로만·원문 `[id]` 인용·확정 표현 회피·통설 오프레이밍 방지) + call_mcp 사용법 + 발견 도구 목록 주입 + few-shot 1개(질의→call_mcp(search_han)→[id] 인용 답).
 
-- [ ] **Step 2: config.ts** — `AGENT_CONFIG`: ollama `{baseUrl, model:'gemma4:e2b'}`, mcp server spec `{ id:'krh', command:'node', args:[<repo>/dist/mcp/server.js], env:{} }`(경로는 repo 루트 기준 resolve; 빌드 선행 필요 — README 명시), caps `{maxLoops:6}`.
+- [ ] **Step 2: config.ts** — `AGENT_CONFIG`: ollama `{baseUrl, model:'gemma4:e2b'}`, caps `{maxLoops:6}`, 그리고 **mcp server spec을 2프로파일(#1)** 로:
+  - `krhDev`: `{ id:'krh', command:'node', args:[<repo>/dist/mcp/server.js], env:{} }` — 개발본(빌드 선행; 경로는 repo 루트 기준 resolve).
+  - `krhProduct`: `{ id:'krh', command:'cmd', args:['/d','/s','/c','npx','-y','-p','kr-history-bm25','krh-mcp'], env:{} }` — 배포판(Windows `cmd` 래핑 = Claude·Codex 등록 동일; 빌드 불필요).
+  - 프로파일 선택: `process.env.AGENT_LAB_MCP === 'product' ? krhProduct : krhDev`(기본 dev). run.ts가 선택 spec으로 connect.
+  - 재현성: product 실행 시 실행 npm·패키지 버전(현 0.5.0)을 리포트에 기록(로컬 미푸시 변경은 product에 반영 안 됨 — dev 모드가 그 역할).
 
 - [ ] **Step 3: 타입/빌드 확인** — Run: `npx tsc -p examples/agent-lab/tsconfig.json --noEmit` · Expected: 통과.
 
@@ -395,11 +427,14 @@ it('cluster 결과는 surface만', () => {
   2. `toolInfos = bridge.listTools('krh')`.
   3. `const outcomes: CallRecord[] = []; const callMcp = makeCallMcpTool(bridge, toolInfos, { serverIds: ['krh'], extractEvidence: krHistoryExtractEvidence, onOutcome: (r)=>outcomes.push(r) })` **(F-01 serverIds 주입 + F-02 계측 sink 배선)**.
   4. `caller = makeOllamaCaller(AGENT_CONFIG.ollama)`.
-  5. **after** = `runToolUse({ systemPrompt: buildPersona(toolInfos), userPrompt: query, tools:[callMcp], caps, callModel: caller, ctx })` → `checkGrounding(finalText, ctx.provided as Evidence[])` **(코어 provided=unknown[]을 도메인 레이어에서 캐스팅, F-01)**.
-  6. **before** = 동일 caller로 도구 없이 1턴 호출(대조).
-  7. before/after + GroundingReport + `outcomes`(CallOutcome 집계)를 stdout 출력. `finally { await bridge.close() }`.
+  5. **after** = `runToolUse({ systemPrompt: buildPersona(toolInfos), userPrompt: query, tools:[callMcp], caps, callModel: caller, ctx, obfuscateToolNames: false })` → `checkGrounding(finalText, ctx.provided as Evidence[])` **(코어 provided=unknown[]을 도메인 레이어에서 캐스팅, F-01; `obfuscateToolNames:false`로 call_mcp 실명 노출 = #2)**.
+  6. **before(#5)** = **대표 질의 1건만** 선택적으로 도구 없이 1턴 기록(전 질의 반복 제거 — `--before` 플래그 또는 대표질의 지정 시에만). 절약한 추론량은 반복 trial·연속 도구호출에 재배분.
+  7. after(전 질의) + GroundingReport + `outcomes`(CallOutcome 집계) + (있으면)대표 1건 before를 stdout 출력. `finally { await bridge.close() }`.
 
-- [ ] **Step 2: 수동 스모크(선택, Ollama 필요)** — Run: `npm run build && npm run agent -w @kr-history/agent-lab -- "낙랑은 어디였나"` · Expected: before(도구없음)·after(call_mcp 호출·[id] 인용)·접지 리포트 출력. (실패 시 R1 관찰 기록.)
+- [ ] **Step 2: 수동 스모크(선택, Ollama 필요) — 2모드(#1)**:
+  - dev: `npm run build && AGENT_LAB_MCP=dev npm run agent -w @kr-history/agent-lab -- "낙랑은 어디였나"`
+  - product: `AGENT_LAB_MCP=product npm run agent -w @kr-history/agent-lab -- "낙랑은 어디였나"`(빌드 불필요)
+  - Expected: after(call_mcp 호출·[id] 인용)·접지 리포트 출력, (대표질의라면)before 대조. product는 채팅 드롭인 관찰(간단 질의 응답)도 정성 기록. (실패 시 R1 관찰 기록.)
 
 - [ ] **Step 3: Commit** — `git commit -m "feat(agent-lab): run.ts CLI(before/after + 접지 리포트)"`
 
@@ -409,9 +444,9 @@ it('cluster 결과는 surface만', () => {
 
 **Files:** Create `eval/queries.json`, `eval/report.ts`
 
-- [ ] **Step 1: queries.json** — discovery 시드 기반(sg/sy 범위): 樂浪 공기·遼水 용법·鴨綠 지명·일반 사료 질의 5~8개. 각 항목 `{ id, query, expectTools?, note }`.
+- [ ] **Step 1: queries.json** — discovery 시드 기반(sg/sy 범위): 樂浪 공기·遼水 용법·鴨綠 지명·일반 사료 질의 5~8개. 각 항목 `{ id, query, expectTools?, note }`. **연속 도구호출 사례 1건 포함** — `search_han`으로 지명 passage를 찾고 이어서 `cluster`로 공기 지명군을 뽑는 2단계 호출을 few-shot/`note`에 명시(멀티라운드 루프 검증).
 
-- [ ] **Step 2: report.ts** — 각 질의를 run 파이프라인(`outcomes` sink 포함)으로 실행, §8 지표 집계 → 표(마크다운/콘솔) + before/after 비교 열. **F-02 집계식(CallOutcome 기반)**:
+- [ ] **Step 2: report.ts** — 각 질의를 run 파이프라인(`outcomes` sink 포함)으로 실행, §8 지표 집계 → 표(마크다운/콘솔). **after 중심 지표 + 대표 1건 before 대조 참조(#5)**(전 질의 before 반복 제거). **F-02 집계식(CallOutcome 기반)**:
   - 메타도구 구성 실패율 = `(unknown-tool + invalid-args) / 총 call_mcp 시도` (목표 < 15%)
   - 도구호출 성공률 = `success / (success + bridge-error)`
   - `[id]` 인용률 = `checkGrounding.citedIds.length>0` 질의 비율
@@ -426,7 +461,7 @@ it('cluster 결과는 surface만', () => {
 
 **Files:** Create `tests/e2e.test.ts`
 
-- [ ] **Step 1: e2e 테스트** — 환경 가드: Ollama(`gemma4:e2b`)·krh-mcp 빌드 산출 미가용 시 `describe.skip`. 가용 시: 실제 bridge.connect(krh) → 대표 질의 1건 run → (a) call_mcp 도구 호출 발생, (b) ctx.provided 비어있지 않음, (c) 접지 리포트 산출을 assert(성능 임계 아닌 계약 검증).
+- [ ] **Step 1: e2e 테스트** — 환경 가드: Ollama(`gemma4:e2b`) 미가용 시 `describe.skip`. `AGENT_LAB_MCP` 스위치로 **dev/product 각각 계약검증(#1)**(dev는 빌드 산출 미가용 시 skip, product는 npx 네트워크 필요 시 skip 태깅). 가용 시: 실제 bridge.connect(krh) → (a) **`listTools('krh')`가 정확히 8개 도구명 포함** assert — `search_han`·`search_ko`·`search_hybrid`·`search_by_reading`·`with_variants`·`cluster`·`place_clusters`·`lookup_place` → 대표 질의 1건 run → (b) call_mcp 도구 호출 발생, (c) ctx.provided 비어있지 않음, (d) 접지 리포트 산출을 assert(성능 임계 아닌 계약 검증).
 
 ```ts
 const OLLAMA = process.env.AGENT_LAB_E2E === '1';
@@ -444,6 +479,6 @@ const OLLAMA = process.env.AGENT_LAB_E2E === '1';
 ## 완료 기준 (스펙 §8 대응)
 
 - Task 0–10 전 커밋 완료, 루트 `npm run validate` 통과.
-- (Ollama 가용 시) `eval/report.ts` 실행으로 §8 지표 표 산출 — **메타도구 구성 성공률·미접지 id율**이 핵심. before/after 대비 기록.
+- (Ollama 가용 시) `eval/report.ts` 실행으로 §8 지표 표 산출 — **메타도구 구성 성공률·미접지 id율**이 핵심. **after 중심 지표 + 대표 1건 before 대조**(#5). dev·product 2모드(#1) 각각 기록.
 - R1 결과(소형 E2B의 call_mcp 구성 능력)를 **성공이든 반증이든 정직하게** README/리포트에 기록 → bd `krh-izc` 갱신.
 - 1.5단계(run_cli)·2단계(멀티모달)는 별도 스펙/계획.

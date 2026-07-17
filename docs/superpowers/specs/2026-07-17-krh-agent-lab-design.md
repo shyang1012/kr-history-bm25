@@ -107,7 +107,10 @@
 - `@modelcontextprotocol/sdk`의 `Client` + `StdioClientTransport`로 대상 MCP 서버를 자식 프로세스로 spawn·연결.
 - API: `connect()`·`listTools(): ToolInfo[]`·`callTool(name, args): unknown`·`close()`.
 - 실전 견고성: 연결 타임아웃, `callTool` 에러를 `{error}`로 정규화(orchestrator 계약), 프로세스 종료 시 정리. 다중 서버 대비 `Map<serverId, Client>` 구조(1단계는 krh 하나 등록).
-- **1단계 대상 = krh-mcp**: `node dist/mcp/server.js`(빌드 선행 필요; `src/mcp/server.ts`는 shebang·`StdioServerTransport` 확인됨). `KRH_DB` 미지정 시 동봉 코퍼스를 자동 오픈하므로 e2e 기동이 현실적. 실행 경로·빌드 선행은 `config.ts`·README에 고정한다.
+- **1단계 대상 = krh-mcp, 2프로파일 검증(#1)**: 개발본과 배포판을 둘 다 붙여 검증한다.
+  - **dev**: `node dist/mcp/server.js`(빌드 선행; `src/mcp/server.ts`는 shebang·`StdioServerTransport` 확인됨) — 개발 소스 그대로 관찰.
+  - **product**: `npx -y -p kr-history-bm25 krh-mcp`(Windows `cmd /d /s /c` 래핑 = Claude·Codex 등록 동일) — 배포판 안정성 + 채팅 드롭인 UX 검증.
+  - `KRH_DB` 미지정 시 동봉 코퍼스를 자동 오픈하므로 e2e 기동이 현실적. 프로파일 선택(`AGENT_LAB_MCP=dev|product`)·실행 경로는 `config.ts`·README에 고정한다.
 
 ### 6.3 `call_mcp` 메타 `ToolSpec` (신규 ③, 범용 코어)
 - **팩토리로 생성(도메인 격리의 lynchpin)** — `makeCallMcpTool(bridge: McpBridge, extractEvidence?: (toolName: string, result: unknown) => Evidence[]): ToolSpec`. 도메인 결합을 **콜백 주입(DIP)** 으로 격리 → `call_mcp`는 kr-history 타입을 import하지 않는다. orchestrator는 `spec.handler(args, ctx)`만 호출하므로(코드위즈 orchestrator.ts line 195), 어댑터는 이 팩토리 인자로만 들어온다.
@@ -137,8 +140,8 @@
 
 ```
 examples/agent-lab/
-  README.md               # 실행법(ollama pull gemma4:e2b, krh-mcp 빌드), 실험 목적
-  package.json            # 워크스페이스 예시 (kr-history-bm25·@modelcontextprotocol/sdk 의존)
+  README.md               # 실행법(ollama pull gemma4:e2b, MCP dev=빌드/product=npx 2모드), 실험 목적
+  package.json            # 워크스페이스 예시 (@modelcontextprotocol/sdk·ajv 의존; kr-history-bm25 런타임 의존 없음 — 어댑터 무import)
   tsconfig.json
   src/
     orchestrator/         # 코드위즈 이식(재활용): orchestrator·registry·types·sanitize-tool-leak
@@ -163,14 +166,14 @@ examples/agent-lab/
 3. **근거 기반 답변**: 도구 결과로 답하고 원문 `[id]`를 인용한다.
 4. **근거 접지(핵심)**: ① 자동 — 인용 `[id]`가 offered id에 존재(미접지 id율 목표 0) · ② 정성 — 지명·수치 주장이 offered `hanSurface`/passage에 등장. (§6.5)
 5. **대표 질의셋 통과**: 낙랑·遼水·압록 등 `discovery-*` 사례에서 통설 단정 없이 공기 지명군을 근거로 제시.
-6. **before/after 기록**: 도구 미사용 대비 개선을 정성 예시 + 정량 지표(메타도구 구성 성공률·도구호출 성공률·`[id]` 인용률·미접지 id율)로 문서화.
+6. **after 중심 + 대표 before 대조 기록(#5)**: after의 정량 지표(메타도구 구성 성공률·도구호출 성공률·`[id]` 인용률·미접지 id율)를 문서화하고, 도구 미사용 대비 개선은 **대표 질의 1건 before** 정성 예시로 대조.
 
 ## 9. 실험 설계 (before/after)
 
 - **질의셋**: `eval/queries.json` — discovery 메모리 실측 시드(낙랑 공기군, 遼水/遼河 용법차, 鴨綠 지명화석) + 일반 사료 질의.
   - ※ **코퍼스 커버리지 전제**: `search_ko`·`search_hybrid`는 번역 완료 코퍼스(sg/sy = 삼국사기·삼국유사)에서만 동작. 시드는 sg/sy 범위 내로 선정해 미커버리지를 도구선택 실패로 오인하지 않는다. `search_han`은 전체 한자 코퍼스에서 동작.
-- **A조건(before)**: 도구 없이 E2B 단독 답변.
-- **B조건(after)**: 동일 질의를 agent-lab(call_mcp+krh-mcp)으로.
+- **A조건(before, #5)**: 도구 없이 E2B 단독 답변 — **대표 질의 1건만 참조 기록**(전 질의 반복 없음). 절약 추론량은 B조건 반복 trial·연속 도구호출에 재배분.
+- **B조건(after)**: 전 질의를 agent-lab(call_mcp+krh-mcp)으로 — 본 평가 축.
 - **측정**(§6.5·§8): 메타도구 구성 성공률, 도구호출 성공률, `[id]` 인용률, 미접지 id율(자동 환각 지표), surface 접지 정성 라벨. `eval/report.ts`가 표로 산출.
 
 ## 10. 테스트 · 품질 게이트
