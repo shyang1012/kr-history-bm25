@@ -77,7 +77,7 @@ export async function runQuery(query: string, opts?: RunQueryOpts): Promise<Agen
     };
 
     const after = await runToolUse({
-      systemPrompt: buildPersona(toolInfos),
+      systemPrompt: buildPersona(),
       userPrompt: query,
       // ToolSpec<CallMcpArgs>는 orchestrator의 기본 ToolSpec(TArgs=Record<string,unknown>)보다
       // 좁아 구조적으로 대입되지 않는다 — handler가 a?.server 등으로 방어하므로 안전한 캐스팅.
@@ -104,7 +104,7 @@ export async function runQuery(query: string, opts?: RunQueryOpts): Promise<Agen
         log: (l) => console.error(l),
       };
       const beforeResult = await runToolUse({
-        systemPrompt: buildPersona([]),
+        systemPrompt: buildPersona(),
         userPrompt: query,
         tools: [],
         caps: AGENT_CONFIG.caps,

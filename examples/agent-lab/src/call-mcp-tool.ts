@@ -49,7 +49,21 @@ export function makeCallMcpTool(
 ): ToolSpec<CallMcpArgs> {
   const ajv = new Ajv({ allErrors: true, strict: false });
   const validators = new Map(toolInfos.map((t) => [t.name, ajv.compile(t.inputSchema)]));
-  const toolList = toolInfos.map((t) => `- ${t.name}: ${t.description}`).join('\n');
+  // 각 도구의 필수 arg 키를 description에 노출한다 — 모델이 args를 정확히 구성하게(진단: arg 키 미상 시
+  // invalid-args). inputSchema.required 우선, 없으면 properties 키.
+  const argHint = (schema: Record<string, unknown>): string => {
+    const required = schema.required;
+    const properties = schema.properties;
+    const keys = Array.isArray(required)
+      ? (required as string[])
+      : properties && typeof properties === 'object'
+        ? Object.keys(properties as Record<string, unknown>)
+        : [];
+    return keys.length > 0 ? `(args: ${keys.join(', ')})` : '';
+  };
+  const toolList = toolInfos
+    .map((t) => `- ${t.name}${argHint(t.inputSchema)}: ${t.description}`)
+    .join('\n');
   return {
     name: 'call_mcp',
     description: `MCP 도구를 호출한다. 사용 가능한 도구:\n${toolList}`,
