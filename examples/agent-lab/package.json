@@ -1,0 +1,24 @@
+{
+  "name": "@kr-history/agent-lab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint src tests eval --ext .ts --no-error-on-unmatched-pattern",
+    "format:check": "prettier --check \"{src,tests,eval}/**/*.{ts,json}\" --ignore-unknown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "validate": "npm run lint && npm run format:check && npm run typecheck && npm run test",
+    "agent": "tsx src/run.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "ajv": "^8"
+  },
+  "devDependencies": {
+    "tsx": "*",
+    "vitest": "*",
+    "typescript": "*",
+    "eslint": "*",
+    "prettier": "*"
+  }
+}
