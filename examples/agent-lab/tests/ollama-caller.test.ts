@@ -1,8 +1,10 @@
 /**
  * @Project: kr-history-bm25 (agent-lab)
  * @File: examples/agent-lab/tests/ollama-caller.test.ts
- * @Description: OllamaModelCaller(Task 3) 검증 — OpenAI 호환 응답 → ModelTurn 변환(forward),
- *   우리 ToolCall → OpenAI tool_calls 직렬화(reverse) 양방향 매핑을 확인한다.
+ * @Description: OllamaModelCaller(Task 3, 2026-07-17 네이티브 /api/chat 전환) 검증 —
+ *   네이티브 응답(tool_calls[].function.arguments=객체) → ModelTurn(argumentsJson=문자열) 변환(forward),
+ *   우리 ToolCall(argumentsJson=문자열) → 네이티브 tool_calls[].function.arguments(객체) 직렬화(reverse),
+ *   think:false 기본 전달을 확인한다.
  * @Author: shyang
  * @LastModified: 2026-07-17
  */
@@ -15,21 +17,14 @@ describe('makeOllamaCaller', () => {
     vi.unstubAllGlobals();
   });
 
-  it('OpenAI 응답을 ModelTurn으로 변환', async () => {
+  it('네이티브 응답(arguments=객체)을 ModelTurn(argumentsJson=문자열)으로 변환', async () => {
     globalThis.fetch = (async () => ({
       ok: true,
       json: async () => ({
-        choices: [
-          {
-            message: {
-              content: '',
-              tool_calls: [
-                { id: 'c1', function: { name: 'call_mcp', arguments: '{"tool":"search_han"}' } },
-              ],
-            },
-          },
-        ],
-        usage: {},
+        message: {
+          content: '',
+          tool_calls: [{ function: { name: 'call_mcp', arguments: { tool: 'search_han' } } }],
+        },
       }),
     })) as unknown as typeof fetch;
 
@@ -37,7 +32,6 @@ describe('makeOllamaCaller', () => {
     const turn = await caller([{ role: 'user', content: 'q' }], []);
 
     expect(turn.toolCalls[0]).toMatchObject({
-      id: 'c1',
       name: 'call_mcp',
       argumentsJson: '{"tool":"search_han"}',
     });
@@ -46,23 +40,23 @@ describe('makeOllamaCaller', () => {
   it('본문만 있고 tool_calls 없으면 toolCalls=[] (최종 답변 턴)', async () => {
     globalThis.fetch = (async () => ({
       ok: true,
-      json: async () => ({ choices: [{ message: { content: '답변입니다' } }], usage: {} }),
+      json: async () => ({ message: { content: '답변', tool_calls: [] } }),
     })) as unknown as typeof fetch;
 
     const caller = makeOllamaCaller({ baseUrl: 'http://x', model: 'gemma4:e2b' });
     const turn = await caller([{ role: 'user', content: 'q' }], []);
 
-    expect(turn.content).toBe('답변입니다');
+    expect(turn.content).toBe('답변');
     expect(turn.toolCalls).toEqual([]);
   });
 
-  it('assistant tool_calls(우리 ToolCall)를 OpenAI function.arguments로 역직렬화', async () => {
+  it('assistant tool_calls(argumentsJson=문자열)를 네이티브 arguments(객체)로 직렬화 + think:false 기본', async () => {
     let capturedBody: string | undefined;
     globalThis.fetch = (async (_url: string, init?: RequestInit) => {
       capturedBody = init?.body as string;
       return {
         ok: true,
-        json: async () => ({ choices: [{ message: { content: 'ok' } }], usage: {} }),
+        json: async () => ({ message: { content: 'ok', tool_calls: [] } }),
       };
     }) as unknown as typeof fetch;
 
@@ -81,10 +75,31 @@ describe('makeOllamaCaller', () => {
 
     expect(capturedBody).toBeDefined();
     const body = JSON.parse(capturedBody as string) as {
-      messages: Array<{ tool_calls?: Array<{ function: { arguments: string } }> }>;
+      think: boolean;
+      messages: Array<{
+        tool_calls?: Array<{ function: { arguments: Record<string, unknown> } }>;
+      }>;
     };
     const assistantMsg = body.messages[1];
-    expect(assistantMsg?.tool_calls?.[0]?.function.arguments).toBe('{"tool":"search_han"}');
+    expect(assistantMsg?.tool_calls?.[0]?.function.arguments).toEqual({ tool: 'search_han' });
+    expect(body.think).toBe(false);
+  });
+
+  it('think:true를 넘기면 body.think가 true', async () => {
+    let capturedBody: string | undefined;
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      capturedBody = init?.body as string;
+      return {
+        ok: true,
+        json: async () => ({ message: { content: 'ok', tool_calls: [] } }),
+      };
+    }) as unknown as typeof fetch;
+
+    const caller = makeOllamaCaller({ baseUrl: 'http://x', model: 'gemma4:e2b', think: true });
+    await caller([{ role: 'user', content: 'q' }], []);
+
+    const body = JSON.parse(capturedBody as string) as { think: boolean };
+    expect(body.think).toBe(true);
   });
 
   it('응답이 !ok면 상태코드·본문을 담아 throw', async () => {
