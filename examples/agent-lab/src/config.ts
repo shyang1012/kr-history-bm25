@@ -74,6 +74,7 @@ export const AGENT_CONFIG = {
     model: process.env.AGENT_LAB_MODEL ?? 'gemma4:e2b',
     think: parseThink(process.env.AGENT_LAB_THINK),
   },
-  caps: { maxLoops: 6 } satisfies OrchestratorCaps,
+  // maxToolRetries=10(도구 실패 시 인자 고쳐 재시도) + 그 재시도를 담을 loop 여유(maxLoops 12).
+  caps: { maxLoops: 12, maxToolRetries: 10 } satisfies OrchestratorCaps,
   krh: selectKrhSpec(process.env.AGENT_LAB_MCP),
 };
