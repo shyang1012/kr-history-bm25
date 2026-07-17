@@ -1,0 +1,40 @@
+{
+  "queries": [
+    {
+      "id": "q1-nakrang-location",
+      "query": "樂浪은 어디에 있었나? 함께 언급되는 지명을 알려줘.",
+      "expectTools": ["search_han"],
+      "note": "discovery 시드: 樂浪(낙랑) 공기 지명군(遼東·玄菟·帶方 등) 확인용. before/after 대표 비교(#5)."
+    },
+    {
+      "id": "q2-liaoshui-usage",
+      "query": "遼水는 어디를 가리키나? 사료마다 용법이 같은지 알려줘.",
+      "expectTools": ["search_han"],
+      "note": "discovery 시드: 遼水 용법차(사료별 지시 대상 상이 가능성) 확인용."
+    },
+    {
+      "id": "q3-amnok-location",
+      "query": "鴨綠의 위치는 어디로 나오나?",
+      "expectTools": ["search_han"],
+      "note": "discovery 시드: 鴨綠(압록) 지명 확인용."
+    },
+    {
+      "id": "q4-goguryeo-baekje",
+      "query": "고구려와 백제의 관계는 사료에 어떻게 나타나나?",
+      "expectTools": ["search_han"],
+      "note": "일반 사료 질의 — sg/sy 범위 내 삼국 관계."
+    },
+    {
+      "id": "q5-silla-early-kings",
+      "query": "신라 초기 왕들의 계보는 어떻게 기록되어 있나?",
+      "expectTools": ["search_han"],
+      "note": "일반 사료 질의 — sg/sy 범위 내 신라 초기 왕계."
+    },
+    {
+      "id": "q6-nakrang-cocluster",
+      "query": "樂浪과 함께 나오는 지명들을 찾고, 그 지명들의 공기 군집을 뽑아줘.",
+      "expectTools": ["search_han", "cluster"],
+      "note": "연속 도구호출(멀티라운드) 검증용 — 1단계 search_han으로 樂浪 관련 passage를 찾은 뒤, 2단계 cluster로 그 결과의 공기 지명군을 뽑는다."
+    }
+  ]
+}
