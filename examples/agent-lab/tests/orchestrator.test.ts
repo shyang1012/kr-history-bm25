@@ -1,14 +1,16 @@
 /**
  * @Project: kr-history-bm25 (agent-lab)
  * @File: examples/agent-lab/tests/orchestrator.test.ts
- * @Description: 오케스트레이터 코어 이식(Task 1) 배선 검증 — 도구 없이 최종답 반환 경로(mock ModelCaller).
+ * @Description: 오케스트레이터 코어 이식(Task 1) 배선 검증 — 도구 없이 최종답 반환 경로(mock ModelCaller) +
+ *   도구명 노출·dispatch 회귀(#2 난독화 off/on).
  * @Author: shyang
  * @LastModified: 2026-07-17
  */
 import { describe, it, expect } from 'vitest';
 import { runToolUse } from '../src/orchestrator/orchestrator';
 import { BudgetTracker } from '../src/orchestrator/registry';
-import type { ToolContext } from '../src/orchestrator/registry';
+import type { ToolContext, ToolSpec } from '../src/orchestrator/registry';
+import type { ModelCaller } from '../src/orchestrator/types';
 
 const ctx = (): ToolContext => ({
   env: {},
@@ -34,6 +36,77 @@ describe('runToolUse', () => {
       callModel,
       ctx: ctx(),
     });
+    expect(r.finalText).toBe('답변');
+  });
+
+  it('off(기본) — 실명 노출 + dispatch', async () => {
+    let handlerCalled = false;
+    let capturedName = '';
+    const tool: ToolSpec = {
+      name: 'call_mcp',
+      description: 'd',
+      parameters: { type: 'object' },
+      cost: () => 0,
+      handler: async () => {
+        handlerCalled = true;
+        return { ok: true };
+      },
+    };
+    let callCount = 0;
+    const callModel: ModelCaller = async (_messages, tools) => {
+      callCount++;
+      if (callCount === 1) {
+        capturedName = tools[0]?.function.name ?? '';
+        return { content: '', toolCalls: [{ id: 'c1', name: 'call_mcp', argumentsJson: '{}' }] };
+      }
+      return { content: '답변', toolCalls: [] };
+    };
+    const r = await runToolUse({
+      systemPrompt: 's',
+      userPrompt: 'u',
+      tools: [tool],
+      caps: { maxLoops: 5 },
+      callModel,
+      ctx: ctx(),
+    });
+    expect(capturedName).toBe('call_mcp');
+    expect(handlerCalled).toBe(true);
+    expect(r.finalText).toBe('답변');
+  });
+
+  it('on(true) — t1 노출 + dispatch(realOf 복원)', async () => {
+    let handlerCalled = false;
+    let capturedName = '';
+    const tool: ToolSpec = {
+      name: 'call_mcp',
+      description: 'd',
+      parameters: { type: 'object' },
+      cost: () => 0,
+      handler: async () => {
+        handlerCalled = true;
+        return { ok: true };
+      },
+    };
+    let callCount = 0;
+    const callModel: ModelCaller = async (_messages, tools) => {
+      callCount++;
+      if (callCount === 1) {
+        capturedName = tools[0]?.function.name ?? '';
+        return { content: '', toolCalls: [{ id: 'c1', name: 't1', argumentsJson: '{}' }] };
+      }
+      return { content: '답변', toolCalls: [] };
+    };
+    const r = await runToolUse({
+      systemPrompt: 's',
+      userPrompt: 'u',
+      tools: [tool],
+      caps: { maxLoops: 5 },
+      callModel,
+      ctx: ctx(),
+      obfuscateToolNames: true,
+    });
+    expect(capturedName).toBe('t1');
+    expect(handlerCalled).toBe(true);
     expect(r.finalText).toBe('답변');
   });
 });
