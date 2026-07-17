@@ -40,4 +40,24 @@ AGENT_LAB_MCP=product npm run agent -w @kr-history/agent-lab -- "질의"
 
 ## 상태
 
-Task 0(워크스페이스 스캐폴딩) 완료. `src/`·`eval/`·`tests/` 실 구현은 Task 1+에서 이어진다.
+1단계 하네스 **구현 완료**(Task 0~10) — 범용 `call_mcp` 메타도구 + `McpBridge`(MCP SDK) +
+`OllamaModelCaller` + 재활용 orchestrator + `GroundingChecker` + kr-history 접지 어댑터.
+루트 `npm run validate` green(단위 39, e2e는 `AGENT_LAB_E2E` 가드로 평소 skip).
+
+### R1 실험 결과 (2026-07-17, `gemma4:e2b` 실구동 — 정직 기록)
+
+핵심 관문 **R1**(소형 2B 온디바이스 모델이 `call_mcp`의 2단 중첩 스키마 `(server, tool, args)`를
+자율 구성하는가) = **부분 반증**.
+
+- ✅ **하네스는 완전 작동** — `krh-mcp` 8개 도구 정확 노출, stdio 브릿지 연결, 멀티라운드 루프,
+  F-02 계측, 접지 리포트가 end-to-end로 돈다(e2e 계약 통과).
+- ⚠️ **도구호출 능력은 있으나 취약** — 강한 명령형 프롬프트엔 `call_mcp` tool_calls를 방출하지만,
+  `trust-principle` 페르소나 + 평이한 질문("낙랑은 어디에 있었나")엔 **자율 호출하지 않는다**.
+- ❌ **중첩 스키마 오구성** — 호출하더라도 `server` 필드에 도구명을 넣거나(enum `['krh']` 무시),
+  arg 키를 틀린다(`query` vs 실제 `search_han`의 `term`) → allow-list / ajv에서 거부.
+- 관찰: `gemma4:e2b`는 답을 OpenAI `reasoning` 필드에 담고 `content`를 비워 반환하는 경향이 있다.
+
+**함의**: 2B 온디바이스 모델은 범용 메타도구의 2단 중첩을 안정적으로 자율 구성하지 못한다.
+다음 실험 후보 — (a) 프롬프트 하드닝(`server='krh'` 고정 강조·도구별 정확 arg 키 few-shot·명령형),
+(b) `reasoning` 필드 fallback 파싱, (c) 상위/4B 모델 대조, (d) 도구별 직접 노출로 중첩 1단 완화
+(범용성 트레이드오프). 상세는 bd `krh-agent-lab-r1-finding`.
