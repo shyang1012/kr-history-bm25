@@ -123,6 +123,9 @@ import { openBundledDb } from 'kr-history-bm25';
 
 const db = await openBundledDb(); // 첫 호출: data/history.sqlite로 압축 해제(~1-2초)
 
+// 0) 코퍼스 카탈로그 — 어떤 사서가 있고 각각 무엇인가(성격·건수·직역 보유)
+const corpora = await db.listCorpora();
+
 // 1) 한자 원문 검색 (주 인덱스) — 지명·인명 등 고유명사에 사용
 const byHan = await db.searchHan('浿水', { limit: 10 });
 
@@ -156,6 +159,7 @@ db.close();
 CLI로도 동일하게 쓸 수 있다:
 
 ```bash
+npx krh corpora                          # 어떤 사서가 들어 있고 각각 무엇인가
 npx krh search 浿水 --index han --limit 10
 npx krh search 辽东 --index han          # 간자체 질의 → 정자 遼東 자동 정규화
 npx krh search 강감찬 --index reading     # 한글 독음 → 姜邯贊(대표음·관용 병기)
@@ -363,10 +367,11 @@ krh mcp install --print         # 실행하지 않고 등록 명령/스니펫만
 동봉본 대신 지정 코퍼스를 연다.
 Windows의 Claude Desktop 등 일부 호스트는 `npx`를 직접 못 띄우니 `"command": "cmd"`, `"args": ["/d","/s","/c","npx","-y","-p","kr-history-bm25","krh-mcp"]` 형태로 감싼다(`krh mcp install`은 이를 자동 처리).
 
-**도구 8종** (파사드에 1:1, JSON 반환):
+**도구 9종** (파사드에 1:1, JSON 반환):
 
 | 도구 | 용도 |
 |------|------|
+| `list_corpora` | **코퍼스 카탈로그** — 어떤 사서가 있고 각각 무엇인가(성격·건수·직역 보유). 검색 결과가 아니다 |
 | `search_han` | 한자 원문 BM25 — 지명·인명 등 **고유명사**. **간자체(简体) 질의 자동 정규화** |
 | `search_ko` | 직역 BM25 — 일식·전쟁 등 **사건·서술어**(번역 완료분) |
 | `search_by_reading` | 한글 독음으로 한자 표기 검색 — **대표음(사전 표제음)·관용 병기** |
@@ -428,7 +433,7 @@ Node ≥ 20. 드라이버는 `@libsql/client`(+drizzle-orm), FTS5 마이그레�
 
 ## 로드맵
 
-- ✅ **MCP 서버** (`krh-mcp`) — 도구 8종 + 비정 가이드로 LLM에 직접 노출. (위 절 참조)
+- ✅ **MCP 서버** (`krh-mcp`) — 도구 9종 + 비정 가이드로 LLM에 직접 노출. (위 절 참조)
 - ✅ **독음 검색·병기** — 한글 독음 → 한자(대표음/관용), 검색 결과 병기.
 - ✅ **간자체 양방향** — 결과 병기(→지도) + 질의 정규화(→중국어권 접근).
 - ✅ **퍼지 군집(FDBSCAN)** — 경계·이표기의 군집 소속을 등급(가능성)으로. "확정 금지" 방법론과 정합.

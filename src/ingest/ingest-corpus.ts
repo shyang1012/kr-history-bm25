@@ -14,6 +14,7 @@ import type { ParsedDocument } from '../types';
 import { parseDocument } from '../parser/document-parser';
 import { hanToUnigram } from './tokenizer';
 import { EntityCache, type PendingEntity } from '../entity/entity-repo';
+import { registryDescription } from '../corpus/corpus-registry';
 
 /** ingest 옵션 */
 export interface IngestOptions {
@@ -196,13 +197,18 @@ function entityStmt(e: PendingEntity): InStatement {
   };
 }
 
-/** 코퍼스를 upsert하고 corpus_id를 반환한다 */
+/**
+ * 코퍼스를 upsert하고 corpus_id를 반환한다.
+ * 설명(description)은 레지스트리 등재 코드일 때만 기록한다 — 미등재(사용자 자체 코퍼스)는 null로 두어
+ * 소비자가 성격을 지어내지 않게 한다(krh-i2o).
+ */
 async function upsertCorpus(
   client: Client,
   code: string,
   name: string,
   sourceDir: string,
 ): Promise<number> {
+  const description = registryDescription(code);
   const found = await client.execute({
     sql: 'SELECT id FROM corpus WHERE code = ?',
     args: [code],
@@ -210,14 +216,18 @@ async function upsertCorpus(
   if (found.rows[0] !== undefined) {
     const id = Number(found.rows[0].id);
     await client.execute({
-      sql: 'UPDATE corpus SET name = ?, source_dir = ? WHERE id = ?',
-      args: [name, sourceDir, id],
+      sql: `UPDATE corpus
+               SET name        = ?
+                 , source_dir  = ?
+                 , description = COALESCE(?, description)
+             WHERE id = ?`,
+      args: [name, sourceDir, description, id],
     });
     return id;
   }
   const inserted = await client.execute({
-    sql: 'INSERT INTO corpus (code, name, source_dir) VALUES (?, ?, ?)',
-    args: [code, name, sourceDir],
+    sql: 'INSERT INTO corpus (code, name, source_dir, description) VALUES (?, ?, ?, ?)',
+    args: [code, name, sourceDir, description],
   });
   return Number(inserted.lastInsertRowid);
 }

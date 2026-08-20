@@ -403,6 +403,23 @@ cli
   });
 
 cli
+  .command('corpora', '코퍼스 카탈로그 — 어떤 사서가 있고 각각 무엇인가')
+  .option('--db <path>', 'SQLite 경로(미지정 시 동봉 코퍼스)')
+  .action(async (opts: { db?: string }) => {
+    const db = await openForQuery(opts.db);
+    const corpora = await db.listCorpora();
+    db.close();
+    for (const c of corpora) {
+      const ingested = c.ingestedAt === null ? '-' : c.ingestedAt.slice(0, 10);
+      console.log(
+        `[${c.code}] ${c.name}  passage=${c.passageCount}  직역=${c.translatedCount}  ingested=${ingested}`,
+      );
+      console.log(`      ${c.description ?? '(설명 없음)'}`);
+    }
+    console.log(`(${corpora.length}종)`);
+  });
+
+cli
   .command(
     'mcp <action> [client]',
     'MCP 서버를 LLM 클라이언트에 자동 등록(action=install / client=claude|codex|gemini|all)',

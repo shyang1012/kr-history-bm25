@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   const dbPath = process.env.KRH_DB;
   const db = dbPath ? await openHistoryDb(dbPath) : await openBundledDb();
 
-  const server = createMcpServer(db);
+  const server = await createMcpServer(db);
   const transport = new StdioServerTransport();
 
   const shutdown = (): void => {

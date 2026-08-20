@@ -55,6 +55,14 @@ describe.skipIf(!ready)('krh CLI e2e (동봉 코퍼스)', () => {
     expect(out).toContain('간체');
   });
 
+  it('corpora — 코퍼스 카탈로그(코드·이름·건수·설명)를 출력한다', () => {
+    const out = krh('corpora');
+    expect(out).toContain('ko');
+    expect(out).toContain('한국고대사료집성');
+    expect(out).toContain('발췌'); // 자기 성격 선언(krh-i2o)
+    expect(out).toMatch(/passage=\d+/);
+  });
+
   it('place-clusters — seed 국소 퍼지 군집 stdout(seed·군집·[C…])', () => {
     const out = krh('place-clusters', '樂浪', '--scope', 'article');
     expect(out).toContain('seed=樂浪');

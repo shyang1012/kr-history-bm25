@@ -10,6 +10,17 @@ export { openBundledDb, findDataDir, type OpenBundledOptions } from './bundled-d
 export { createDbConnection, type DbConnection } from './db/client';
 export { runMigrations } from './db/migrate';
 
+// 코퍼스 자기설명(krh-i2o) — 카탈로그·설명 단일 소스
+export { listCorpora, type CorpusInfo } from './corpus/list-corpora';
+export {
+  CORPUS_REGISTRY,
+  corpusCodes,
+  registryDescription,
+  describeCorpusCodes,
+  describeTranslatedCorpora,
+  type CorpusMeta,
+} from './corpus/corpus-registry';
+
 export { ingestCorpus, type IngestOptions, type IngestStats } from './ingest/ingest-corpus';
 export { hanToUnigram, buildPhraseQuery, isCjk } from './ingest/tokenizer';
 

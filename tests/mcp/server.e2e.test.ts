@@ -34,9 +34,9 @@ afterAll(() => {
 });
 
 describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
-  it('도구 8종을 노출하고 search_han이 실제 결과를 반환한다', async () => {
+  it('도구 9종을 노출하고 search_han이 실제 결과를 반환한다', async () => {
     const db = await openBundledDb({ targetDir: workDir });
-    const server = createMcpServer(db);
+    const server = await createMcpServer(db);
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'e2e-client', version: '0.0.0' });
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -44,6 +44,7 @@ describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       'cluster',
+      'list_corpora',
       'lookup_place',
       'place_clusters',
       'search_by_reading',
@@ -71,7 +72,7 @@ describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
 
   it('search_by_reading — 한글 독음으로 한자를 찾고 대표음·관용을 병기 반환한다', async () => {
     const db = await openBundledDb({ targetDir: workDir });
-    const server = createMcpServer(db);
+    const server = await createMcpServer(db);
     const [ct, st] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'e2e-reading', version: '0.0.0' });
     await Promise.all([server.connect(st), client.connect(ct)]);
@@ -95,7 +96,7 @@ describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
 
   it('search_han — 간자체 질의(辽东)도 정자 원문(遼東)을 반환한다', async () => {
     const db = await openBundledDb({ targetDir: workDir });
-    const server = createMcpServer(db);
+    const server = await createMcpServer(db);
     const [ct, st] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'e2e-simplified', version: '0.0.0' });
     await Promise.all([server.connect(st), client.connect(ct)]);
@@ -115,7 +116,7 @@ describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
 
   it('place_clusters — seed 지명의 국소 퍼지 군집을 반환한다', async () => {
     const db = await openBundledDb({ targetDir: workDir });
-    const server = createMcpServer(db);
+    const server = await createMcpServer(db);
     const [ct, st] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'e2e-fdbscan', version: '0.0.0' });
     await Promise.all([server.connect(st), client.connect(ct)]);
@@ -137,12 +138,44 @@ describe.skipIf(!hasBundle)('MCP server e2e (동봉 코퍼스)', () => {
     await client.close();
     db.close();
   });
+
+  it('list_corpora — 동봉본이 자기 성격을 선언한다(ko=1차 사료 발췌·외부 관찰기록)', async () => {
+    const db = await openBundledDb({ targetDir: workDir });
+    const server = await createMcpServer(db);
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'e2e-corpora', version: '0.0.0' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+
+    const res = await client.callTool({ name: 'list_corpora', arguments: {} });
+    const content = res.content as { type: string; text: string }[];
+    const parsed = JSON.parse(content[0].text) as {
+      note: string;
+      corpora: {
+        code: string;
+        name: string;
+        description: string | null;
+        passageCount: number;
+        ingestedAt: string | null;
+      }[];
+    };
+    expect(parsed.corpora.map((c) => c.code).sort()).toEqual(['kj', 'ko', 'kr', 'sg', 'sy']);
+
+    // 구 동봉본(0.4.0)도 0005 마이그레이션 backfill로 설명을 받는다
+    const ko = parsed.corpora.find((c) => c.code === 'ko');
+    expect(ko?.name).toBe('한국고대사료집성');
+    expect(ko?.description).toContain('발췌');
+    expect(ko?.passageCount).toBeGreaterThan(0);
+    expect(ko?.ingestedAt).toBeTruthy();
+
+    await client.close();
+    db.close();
+  });
 });
 
 describe.skipIf(!hybridReady)('MCP server e2e — 하이브리드(번들 모델)', () => {
   it('search_hybrid — 낙랑 의미검색으로 樂浪 원문 반환', async () => {
     const db = await openBundledDb({ targetDir: workDir });
-    const server = createMcpServer(db);
+    const server = await createMcpServer(db);
     const [ct, st] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'e2e-hybrid', version: '0.0.0' });
     await Promise.all([server.connect(st), client.connect(ct)]);

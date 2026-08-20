@@ -20,10 +20,12 @@ import {
 export const corpus = sqliteTable('corpus', {
   /** 코퍼스ID · PK · 자동증가 */
   id: integer('id').primaryKey({ autoIncrement: true }),
-  /** 코퍼스 코드 · 고유 · 파일 접두어 기반(sg/ss/kr/kj/ka) */
+  /** 코퍼스 코드 · 고유 · 파일 접두어 기반(sg/sy/kr/kj/ko) */
   code: text('code').notNull().unique(),
   /** 사서명 · 예: 삼국사기 */
   name: text('name').notNull(),
+  /** 🔴 이 코퍼스가 무엇인가 — 소비자(LLM)가 출처 성격을 추측하지 않게 한다(corpus-registry가 단일 소스) */
+  description: text('description'),
   /** 원본 디렉터리 경로 */
   sourceDir: text('source_dir').notNull(),
   /** DTD 버전 표기 · nullable */

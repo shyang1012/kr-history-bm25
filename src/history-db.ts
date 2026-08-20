@@ -40,6 +40,7 @@ import {
   type ReadingResult,
   type ImportStats,
 } from './reading/batch';
+import { listCorpora, type CorpusInfo } from './corpus/list-corpora';
 import { searchHan, type SearchHanOptions } from './search/search-han';
 import { searchKo, type SearchKoOptions } from './search/search-ko';
 import { lookupPlace, type LookupOptions } from './search/lookup-place';
@@ -106,6 +107,11 @@ export class HistoryDb {
   /** 구독 모델이 직역한 결과를 적재한다(배치 흐름) */
   importResults(options: ImportResultsOptions): Promise<ImportResultsStats> {
     return importResults(this.conn, options);
+  }
+
+  /** 코퍼스 카탈로그 — 어떤 사서가 있고 각각 무엇인가(검색 결과가 아니다) */
+  listCorpora(): Promise<CorpusInfo[]> {
+    return listCorpora(this.conn.client);
   }
 
   /** 한자 원문 BM25 검색 */

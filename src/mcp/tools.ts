@@ -1,15 +1,19 @@
 /**
  * @Project: kr-history-bm25
  * @File: tools.ts
- * @Description: MCP 도구 7종 등록 — search_han/search_ko/search_by_reading/lookup_place/cluster/with_variants/place_clusters.
+ * @Description: MCP 도구 9종 등록 — list_corpora/search_han/search_ko/search_hybrid/search_by_reading/
+ *               lookup_place/cluster/with_variants/place_clusters.
  *               HistoryDb 파사드에 1:1 매핑하는 얇은 어댑터. 결과는 JSON 텍스트로 반환한다.
  *               도구 설명에 사용 지침(고유명사→han / 사건·서술어→ko)을 인코딩해 LLM 선택을 돕는다.
+ *               🔴 코퍼스 코드·직역 보유 현황은 손유지 문자열이 아니라 DB 실측 카탈로그에서 생성한다(krh-i2o).
  * @Author: shyang
- * @LastModified: 2026-07-10
+ * @LastModified: 2026-08-21
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { McpCorpus } from './create-server';
+import type { CorpusInfo } from '../corpus/list-corpora';
+import { describeCorpusCodes, describeTranslatedCorpora } from '../corpus/corpus-registry';
 import { readingDisplay, type ReadingSearchResult } from '../search/search-by-reading';
 
 /**
@@ -63,17 +67,45 @@ const limitSchema = z
   .max(200)
   .optional()
   .describe('최대 결과 수(기본 20)');
-const corpusCodeSchema = z
-  .string()
-  .optional()
-  .describe('코퍼스 코드로 제한(sg=삼국사기·sy=삼국유사·kr=고려사·kj=고려사절요·ko=고대사료집성)');
+
+/** list_corpora가 근거(evidence) 도구로 오분류되지 않게 하는 계약 문구 */
+const CATALOG_NOTE =
+  '이것은 검색 결과가 아니라 코퍼스 카탈로그다. 인용·근거는 search_* 도구 결과로만 제시하고, ' +
+  '신뢰 근거는 언제나 한자 원문이다.';
+
+/** 직역 보유 현황 문장(카탈로그가 비면 빈 문자열) */
+function translatedHint(catalog: readonly CorpusInfo[]): string {
+  const hint = describeTranslatedCorpora(catalog);
+  return hint === '' ? '' : ` 직역 보유(채택/전체): ${hint}.`;
+}
 
 /**
- * 코퍼스 도구 5종을 서버에 등록한다.
+ * 코퍼스 도구 9종을 서버에 등록한다.
  * @param server - McpServer
- * @param corpus - 검색·군집·조회 파사드
+ * @param corpus - 검색·군집·조회·카탈로그 파사드
+ * @param catalog - 기동 시 조회한 코퍼스 카탈로그(도구 설명 생성용 스냅샷)
  */
-export function registerTools(server: McpServer, corpus: McpCorpus): void {
+export function registerTools(
+  server: McpServer,
+  corpus: McpCorpus,
+  catalog: readonly CorpusInfo[] = [],
+): void {
+  const corpusCodeSchema = z.string().optional().describe(describeCorpusCodes(catalog));
+  const koScope = translatedHint(catalog);
+
+  server.registerTool(
+    'list_corpora',
+    {
+      title: '코퍼스 카탈로그(무엇이 들어 있는가)',
+      description:
+        '이 서버가 담고 있는 사서 목록과 각 사서의 성격·수록 건수·직역 보유 현황을 반환한다. ' +
+        '🔴 검색 결과가 아니다 — 근거(evidence) 도구가 아니라 카탈로그다. ' +
+        '출처의 성격(1차 사료인지, 어느 시대·어느 관찰 위치의 기록인지)을 추측하지 말고 이 도구로 확인한다.',
+      inputSchema: {},
+    },
+    async () => jsonResult({ note: CATALOG_NOTE, corpora: await corpus.listCorpora() }),
+  );
+
   server.registerTool(
     'search_han',
     {
@@ -98,7 +130,8 @@ export function registerTools(server: McpServer, corpus: McpCorpus): void {
       title: '직역(보조) BM25 검색',
       description:
         '우리가 직접 직역한 한국어 보조 인덱스를 BM25로 검색한다. 일식·전쟁·항복 등 사건·현상·서술어에 사용한다. ' +
-        '번역 완료 코퍼스(삼국사기·삼국유사)에서만 유효하다. 고유명사는 search_han을 쓴다.',
+        '직역이 적재된 범위에서만 유효하다(전체 코퍼스는 list_corpora로 확인). 고유명사는 search_han을 쓴다.' +
+        koScope,
       inputSchema: {
         term: z.string().min(1).describe('검색어(한국어)'),
         limit: limitSchema,
@@ -228,7 +261,8 @@ export function registerTools(server: McpServer, corpus: McpCorpus): void {
       description:
         '한자 BM25·독음/간자 사전·직역 BM25·의미 벡터를 가중 융합해 검색한다(정확 층 위 발견 층). ' +
         '고유명사·개념·한글 독음·간자체 질의 모두 한 창구로 처리하며, 사전이 authoritative(우선)하고 벡터는 ' +
-        '맥락 recall을 보강한다. 의미 벡터는 번역 완료 코퍼스(삼국사기·삼국유사)에서 동작한다. score는 클수록 관련이 높다.',
+        '맥락 recall을 보강한다. 의미 벡터는 직역·임베딩이 적재된 범위에서 동작한다. score는 클수록 관련이 높다.' +
+        koScope,
       inputSchema: {
         query: z.string().min(1).describe('검색어(한자·한글 독음·개념·간자체)'),
         limit: limitSchema,

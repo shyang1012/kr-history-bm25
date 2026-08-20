@@ -85,12 +85,33 @@ function makeStub(): { corpus: McpCorpus; calls: Record<string, unknown> } {
         ],
       };
     },
+    listCorpora: async () => {
+      calls.listCorpora = true;
+      return [
+        {
+          code: 'sg',
+          name: '삼국사기',
+          description: '기전체 정사',
+          passageCount: 6086,
+          translatedCount: 5733,
+          ingestedAt: '2026-07-08T21:22:38.666Z',
+        },
+        {
+          code: 'ko',
+          name: '한국고대사료집성',
+          description: '25사 동이 관련 기록 발췌·집성',
+          passageCount: 19110,
+          translatedCount: 0,
+          ingestedAt: '2026-07-08T21:23:05.443Z',
+        },
+      ];
+    },
   };
   return { corpus, calls };
 }
 
 async function connect(corpus: McpCorpus): Promise<Client> {
-  const server = createMcpServer(corpus);
+  const server = await createMcpServer(corpus);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'test-client', version: '0.0.0' });
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -103,13 +124,14 @@ function firstText(result: { content?: unknown }): string {
 }
 
 describe('MCP tools', () => {
-  it('도구 8종이 등록된다', async () => {
+  it('도구 9종이 등록된다', async () => {
     const { corpus } = makeStub();
     const client = await connect(corpus);
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([
       'cluster',
+      'list_corpora',
       'lookup_place',
       'place_clusters',
       'search_by_reading',
@@ -118,6 +140,45 @@ describe('MCP tools', () => {
       'search_ko',
       'with_variants',
     ]);
+    await client.close();
+  });
+
+  it('list_corpora는 코퍼스 카탈로그를 반환하고 「근거 도구가 아님」을 선언한다', async () => {
+    const { corpus, calls } = makeStub();
+    const client = await connect(corpus);
+    const res = await client.callTool({ name: 'list_corpora', arguments: {} });
+    const parsed = JSON.parse(firstText(res)) as {
+      note: string;
+      corpora: { code: string; description: string | null }[];
+    };
+    expect(calls.listCorpora).toBe(true);
+    expect(parsed.corpora.map((c) => c.code)).toEqual(['sg', 'ko']);
+    expect(parsed.corpora[1].description).toContain('발췌');
+    // 소비자(extractEvidence)가 근거 축으로 오분류하지 않게 하는 계약
+    expect(parsed.note).toContain('검색 결과가 아니');
+    await client.close();
+  });
+
+  it('corpusCode 설명이 DB 실측 코퍼스에서 생성된다(손유지 문자열 드리프트 차단)', async () => {
+    const { corpus } = makeStub();
+    const client = await connect(corpus);
+    const { tools } = await client.listTools();
+    const schema = tools.find((t) => t.name === 'search_han')?.inputSchema as {
+      properties: { corpusCode: { description: string } };
+    };
+    expect(schema.properties.corpusCode.description).toContain('sg=삼국사기');
+    expect(schema.properties.corpusCode.description).toContain('ko=한국고대사료집성');
+    await client.close();
+  });
+
+  it('search_ko 설명이 직역 보유 코퍼스를 실측으로 말한다(하드코딩 아님)', async () => {
+    const { corpus } = makeStub();
+    const client = await connect(corpus);
+    const { tools } = await client.listTools();
+    const desc = tools.find((t) => t.name === 'search_ko')?.description ?? '';
+    expect(desc).toContain('삼국사기');
+    // 직역 0건인 코퍼스는 유효 범위로 광고하지 않는다
+    expect(desc).not.toContain('한국고대사료집성');
     await client.close();
   });
 
