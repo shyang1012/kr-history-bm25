@@ -2,6 +2,8 @@ node_modules/
 dist/
 coverage/
 tmp/
+# PM 임시 작업자료(작업용 지식·참고 PDF 등) — 저장소 대상 아님
+etc/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
