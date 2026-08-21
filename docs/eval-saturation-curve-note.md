@@ -3,6 +3,7 @@
 > 상태: **평가 노트(REVIEW)** · 2026-07-22 · 서명 shyang
 > 대상: PM(승현님) 아이디어를 GPT가 정리한 초안에 대한 PL 기술 평가.
 > 정합: 기존 [`krh-cvh-phase0-eval-report.md`](./krh-cvh-phase0-eval-report.md)(Recall@k·MRR·nDCG 오프라인 평가)와 `krh-btf`(재현성 매니페스트) 위에 얹는다.
+> 라이선스: CC BY 4.0 © shyang — 저작자 표시 시 자유 이용([docs/LICENSE.md](./LICENSE.md))
 
 ---
 

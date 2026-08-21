@@ -4,6 +4,7 @@
 > 조치 요약은 §7. 아래 §0~§6은 **보고 시점 기록 그대로** 보존한다.
 > 발단: pearjun(런타임) 온프렘 실사용 중 관측. 원인은 **소비자가 아니라 이 저장소**에 있다.
 > 정합: `src/mcp/tools.ts`(도구 계약) · `src/db/schema.ts`(`corpus` 테이블) · `src/cli/krh.ts`
+> 라이선스: CC BY 4.0 © shyang — 저작자 표시 시 자유 이용([docs/LICENSE.md](./LICENSE.md))
 
 ---
 

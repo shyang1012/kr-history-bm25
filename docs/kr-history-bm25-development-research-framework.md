@@ -5,6 +5,8 @@
 > 사용자 문서는 [README.md](../README.md), 에이전트 공통 규약은 [AGENTS.md](../AGENTS.md), Claude 전용 지식은 [CLAUDE.md](../CLAUDE.md)에 있다.
 >
 > **상태 범례** — ✅ 구현됨 · 🟡 부분(단순 프록시/유형 미분화) · ⬜ 로드맵(코드 부재)
+>
+> 라이선스: CC BY 4.0 © shyang — 저작자 표시 시 자유 이용([docs/LICENSE.md](./LICENSE.md))
 
 ---
 

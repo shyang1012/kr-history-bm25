@@ -3,6 +3,7 @@
 > 상태: **1차 완료(DRAFT 평가자산 기준)** · 2026-07-12 · 서명 shyang
 > 목적: 벡터 층을 **짓기 전에** 하이브리드·리랭커 효과와 한문 임베딩 타당성을 숫자로 확정(`evidence-first-guard`).
 > 재현: `npm run build && node scripts/embedding-eval.mjs [--reranker]` → `tmp/embedding-eval.json`.
+> 라이선스: CC BY 4.0 © shyang — 저작자 표시 시 자유 이용([docs/LICENSE.md](./LICENSE.md))
 
 ## 1. 방법
 
